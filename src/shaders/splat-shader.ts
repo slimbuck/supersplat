@@ -181,12 +181,9 @@ void main(void)
                     alpha = B;
                 }
                 else {
-                    // rings mode
-                    if (A < 1.0 - ringSize) {
-                        alpha = max(0.05, B);
-                    } else {
-                        alpha = 0.6;
-                    }
+                    // rings mode -> balls mode
+                    c *= 1.0 - A * 0.5;
+                    alpha = 1.0;
                 }
             }
 
