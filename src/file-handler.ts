@@ -149,6 +149,7 @@ const extractNerfPoses = (json: any, filename: string) => {
             // transform into SuperSplat coordinate system
             mat.mul2(mat, rot);
 
+            // generate focal point down the Z axis
             mat.transformPoint(Vec3.BACK, vec);
 
             return {
