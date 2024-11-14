@@ -1,4 +1,4 @@
-import { path, Vec3 } from 'playcanvas';
+import { path, Mat4, Quat, Vec3 } from 'playcanvas';
 
 import { CreateDropHandler } from './drop-handler';
 import { ElementType } from './element';
@@ -90,39 +90,95 @@ const sendToRemoteStorage = async (filename: string, data: ArrayBuffer, remoteSt
     });
 };
 
+type LoadedPose = {
+    name: string,
+    position: Vec3,
+    target: Vec3
+};
+
+const extractInriaPoses = (json: any, filename: string) => {
+    // calculate the average position of the camera poses
+    const ave = new Vec3(0, 0, 0);
+    json.forEach((pose: any) => {
+        vec.set(pose.position[0], pose.position[1], pose.position[2]);
+        ave.add(vec);
+    });
+    ave.mulScalar(1 / json.length);
+
+    return json.map((pose: any, i: number) => {
+        if (pose.hasOwnProperty('position') && pose.hasOwnProperty('rotation')) {
+            const p = new Vec3(pose.position);
+            const z = new Vec3(pose.rotation[0][2], pose.rotation[1][2], pose.rotation[2][2]);
+
+            const dot = vec.sub2(ave, p).dot(z);
+            vec.copy(z).mulScalar(dot).add(p);
+
+            return {
+                name: pose.img_name ?? `${filename}_${i}`,
+                position: new Vec3(-p.x, -p.y, p.z),
+                target: new Vec3(-vec.x, -vec.y, vec.z)
+            };
+        }
+    });
+};
+
+const extractNerfPoses = (json: any, filename: string) => {
+    if (!Array.isArray(json.frames)) {
+        return [] as LoadedPose[];
+    }
+
+    const is4Numbers = (x: any) => {
+        return x && Array.isArray(x) && x.length === 4 && x.every((y: any) => typeof y === 'number');
+    };
+
+    const isMatrix = (x: any) => {
+        return x && Array.isArray(x) && x.length === 4 && x.every(is4Numbers);
+    };
+
+    const quat = new Quat().setFromEulerAngles(90, 0, 0);
+    const rot = new Mat4().setTRS(Vec3.ZERO, quat, Vec3.ONE);
+    const mat = new Mat4();
+    const vec = new Vec3();
+
+    return json.frames
+        .filter((frame: any) => isMatrix(frame.transform_matrix))
+        .map((frame: any, i: number) => {
+            // construct 4x4 matrix
+            mat.set(frame.transform_matrix.flat()).transpose();
+
+            // transform into SuperSplat coordinate system
+            mat.mul2(mat, rot);
+
+            mat.transformPoint(Vec3.BACK, vec);
+
+            return {
+                name: frame.file_path ?? `${filename}_${i}`,
+                position: mat.getTranslation().clone(),
+                target: vec
+            };
+        });
+};
+
 const loadCameraPoses = async (url: string, filename: string, events: Events) => {
+    const lastNumber = /(\d+)(?!.*\d)/;
+
+    // sort camera pose names by the last number, if it exists
+    const sorter = (a: LoadedPose, b: LoadedPose) => {
+        const avalue = a.name?.match(lastNumber)?.[0];
+        const bvalue = b.name?.match(lastNumber)?.[0];
+        return (avalue && bvalue) ? parseInt(avalue, 10) - parseInt(bvalue, 10) : 0;
+    };
+
     const response = await fetch(url);
     const json = await response.json();
-    if (json.length > 0) {
-        // calculate the average position of the camera poses
-        const ave = new Vec3(0, 0, 0);
-        json.forEach((pose: any) => {
-            vec.set(pose.position[0], pose.position[1], pose.position[2]);
-            ave.add(vec);
-        });
-        ave.mulScalar(1 / json.length);
+    const poses = ((json.length > 0) ? extractInriaPoses(json, filename) : extractNerfPoses(json, filename)).sort(sorter);
 
-        // sort entries by trailing number if it exists
-        const sorter = (a: any, b: any) => {
-            const avalue = a.img_name?.match(/\d*$/)?.[0];
-            const bvalue = b.img_name?.match(/\d*$/)?.[0];
-            return (avalue && bvalue) ? parseInt(avalue, 10) - parseInt(bvalue, 10) : 0;
-        };
-
-        json.sort(sorter).forEach((pose: any, i: number) => {
-            if (pose.hasOwnProperty('position') && pose.hasOwnProperty('rotation')) {
-                const p = new Vec3(pose.position);
-                const z = new Vec3(pose.rotation[0][2], pose.rotation[1][2], pose.rotation[2][2]);
-
-                const dot = vec.sub2(ave, p).dot(z);
-                vec.copy(z).mulScalar(dot).add(p);
-
-                events.fire('camera.addPose', {
-                    name: pose.img_name ?? `${filename}_${i}`,
-                    position: new Vec3(-p.x, -p.y, p.z),
-                    target: new Vec3(-vec.x, -vec.y, vec.z)
-                });
-            }
+    for (let i = 0; i < poses.length; i++) {
+        const pose = poses[i];
+        events.fire('camera.addPose', {
+            name: pose.name,
+            position: pose.position,
+            target: pose.target
         });
     }
 };
