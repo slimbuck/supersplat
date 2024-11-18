@@ -1,7 +1,18 @@
+@use 'colors.scss' as *;
+
 #scene-panel {
     top: 102px;
     left: 24px;
     width: 320px;
+
+    #transform-pivot {
+        color: $clr-disabled;
+        cursor: pointer;
+
+        &.selected {
+            color: $clr-hilight;
+        }
+    }
 }
 
 .collapsed #scene-panel {

@@ -49,16 +49,6 @@ class SplatsTransformHandler implements TransformHandler {
                 this.placePivot();
             }
         });
-
-        events.on('camera.focalPointPicked', (details: { splat: Splat, position: Vec3 }) => {
-            if (this.splat) {
-                const pivot = events.invoke('pivot') as Pivot;
-                const oldt = pivot.transform.clone();
-                const newt = new Transform(details.position, pivot.transform.rotation, pivot.transform.scale);
-                const op = new PlacePivotOp({ pivot, oldt, newt });
-                events.fire('edit.add', op);
-            }
-        });
     }
 
     placePivot() {
@@ -169,7 +159,6 @@ class SplatsTransformHandler implements TransformHandler {
             transform: transform.clone(),
             paletteMap: new Map(paletteMap)
         });
-
 
         // create op for pivot placement
         const pivot = this.events.invoke('pivot') as Pivot;

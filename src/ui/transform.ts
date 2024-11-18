@@ -4,6 +4,7 @@ import { Quat, Vec3 } from 'playcanvas';
 import { Events } from '../events';
 import { localize } from './localization';
 import { Pivot } from '../pivot';
+import { Transform as XForm } from '../transform';
 
 const v = new Vec3();
 
@@ -15,6 +16,8 @@ class Transform extends Container {
         };
 
         super(args);
+
+        // axes labels
 
         const axis = new Container({
             class: 'transform-row'
@@ -143,7 +146,13 @@ class Transform extends Container {
                 q.mulScalar(-1);
             }
 
-            pivot.moveTRS(new Vec3(p[0], p[1], p[2]), q, new Vec3(s, s, s));
+            if (events.invoke('transform.pivot')) {
+                const t = new XForm();
+                t.set(new Vec3(p[0], p[1], p[2]), q, new Vec3(s, s, s));
+                pivot.place(t);
+            } else {
+                pivot.moveTRS(new Vec3(p[0], p[1], p[2]), q, new Vec3(s, s, s));
+            }
         };
 
         // handle a change in the UI state

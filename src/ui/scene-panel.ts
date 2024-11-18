@@ -75,6 +75,8 @@ class ScenePanel extends Container {
         });
         splatListContainer.append(splatList);
 
+        // transform header
+
         const transformHeader = new Container({
             class: 'panel-header'
         });
@@ -89,8 +91,15 @@ class ScenePanel extends Container {
             class: 'panel-header-label'
         });
 
+        const transformPivot = new Label({
+            text: '\uE199',
+            class: 'panel-header-icon',
+            id: 'transform-pivot'
+        });
+
         transformHeader.append(transformIcon);
         transformHeader.append(transformLabel);
+        transformHeader.append(transformPivot);
 
         this.append(sceneHeader);
         this.append(splatListContainer);
@@ -100,6 +109,30 @@ class ScenePanel extends Container {
             class: 'panel-header',
             height: 20
         }));
+
+        // transform pivot
+
+        let transformPivotState = false;
+
+        const setTransformPivotState = (state: boolean) => {
+            if (state !== transformPivotState) {
+                transformPivotState = state;
+                transformPivot.class[state ? 'add' : 'remove']('selected');
+                events.fire('transform.pivot', transformPivotState);
+            }
+        };
+
+        events.function('transform.pivot', () => {
+            return transformPivotState;
+        });
+
+        events.on('transform.pivot', setTransformPivotState);
+
+        // toggle transform pivot
+
+        transformPivot.on('click', () => {  
+            setTransformPivotState(!transformPivotState);
+        });
     }
 }
 

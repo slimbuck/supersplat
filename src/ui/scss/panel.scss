@@ -27,6 +27,12 @@
             font-weight: bold;
             flex-grow: 1;
         }
+
+        & > .panel-header-toggle {
+            color: $text-primary;
+            font-weight: bold;
+            flex-grow: 1;
+        }
     }
 
     .panel-header-button {

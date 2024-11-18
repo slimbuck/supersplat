@@ -1,8 +1,11 @@
-import { Entity, GraphicsDevice, TransformGizmo } from 'playcanvas';
+import { Entity, TransformGizmo, Vec3 } from 'playcanvas';
 
 import { Events } from '../events';
 import { Pivot } from '../pivot';
 import { Scene } from '../scene';
+import { Splat } from '../splat';
+import { Transform } from '../transform';
+import { PlacePivotOp } from '../edit-ops';
 
 class TransformTool {
     activate: () => void;
@@ -56,6 +59,17 @@ class TransformTool {
         events.on('pivot.placed', reattach);
         events.on('pivot.moved', reattach);
         events.on('selection.changed', reattach);
+
+        // move gizmo to when user picks focal point
+        events.on('camera.focalPointPicked', (details: { splat: Splat, position: Vec3 }) => {
+            if (active) {
+                const pivot = events.invoke('pivot') as Pivot;
+                const oldt = pivot.transform.clone();
+                const newt = new Transform(details.position, pivot.transform.rotation, pivot.transform.scale);
+                const op = new PlacePivotOp({ pivot, oldt, newt });
+                events.fire('edit.add', op);
+            }
+        });
 
         // set the gizmo size to remain a constant size in screen space.
         // called in response to changes in canvas size

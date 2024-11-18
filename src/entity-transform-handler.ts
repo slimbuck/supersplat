@@ -39,15 +39,6 @@ class EntityTransformHandler implements TransformHandler {
                 this.end();
             }
         });
-
-        events.on('camera.focalPointPicked', (details: { splat: Splat, position: Vec3 }) => {
-            if (this.splat) {
-                const pivot = events.invoke('pivot') as Pivot;
-                const newt = new Transform(details.position, pivot.transform.rotation, pivot.transform.scale);
-                const op = new PlacePivotOp({ pivot, oldt: pivot.transform.clone(), newt });
-                events.fire('edit.add', op);
-            }
-        });
     }
 
     placePivot() {
