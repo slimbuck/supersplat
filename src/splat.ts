@@ -12,12 +12,13 @@ import {
     Mat4,
     Quat,
     Texture,
-    Vec3
+    Vec3,
+    MeshInstance
 } from 'playcanvas';
 
 import { Element, ElementType } from './element';
 import { Serializer } from './serializer';
-import { vertexShader, fragmentShader } from './shaders/splat-shader';
+import { vertexShader, fragmentShader, gsplatCenter } from './shaders/splat-shader';
 import { State } from './splat-state';
 import { TransformPalette } from './transform-palette';
 
@@ -77,7 +78,8 @@ class Splat extends Element {
         // get material options object for a shader that renders with the given number of bands
         const materialOptions = {
             vertex: vertexShader,
-            fragment: fragmentShader
+            fragment: fragmentShader,
+            chunks: { gsplatCenterVS: gsplatCenter }
         };
 
         this.asset = asset;
@@ -86,6 +88,24 @@ class Splat extends Element {
         this.entity = splatResource.instantiate(materialOptions);
 
         const instance = this.entity.gsplat.instance;
+
+        // use custom render order distance calculation for splats
+        instance.meshInstance.calculateSortDistance = (meshInstance: MeshInstance, pos: Vec3, dir: Vec3) => {
+            const bound = this.localBound;
+            const mat = this.entity.getWorldTransform();
+            let maxDist;
+            for (let i = 0; i < 8; ++i) {
+                vec.x = bound.center.x + bound.halfExtents.x * (i & 1 ? 1 : -1);
+                vec.y = bound.center.y + bound.halfExtents.y * (i & 2 ? 1 : -1);
+                vec.z = bound.center.z + bound.halfExtents.z * (i & 4 ? 1 : -1);
+                mat.transformPoint(vec, vec);
+                const dist = vec.sub(pos).dot(dir);
+                if (i === 0 || dist > maxDist) {
+                    maxDist = dist;
+                }
+            }
+            return maxDist;
+        };
 
         // added per-splat state channel
         // bit 1: selected
@@ -127,9 +147,7 @@ class Splat extends Element {
             const material = instance.material;
 
             const numBands = instance.splat.hasSH ? bands : 0;
-            material.setDefine('USE_SH1', numBands > 0 ? '1' : false);
-            material.setDefine('USE_SH2', numBands > 1 ? '1' : false);
-            material.setDefine('USE_SH3', numBands > 2 ? '1' : false);
+            material.setDefine('SH_BANDS', `${numBands}`);
             material.setParameter('splatState', this.stateTexture);
             material.setParameter('splatTransform', this.transformTexture);
             material.setParameter('transformPalette', this.transformPalette.texture);
@@ -304,7 +322,6 @@ class Splat extends Element {
         const material = this.entity.gsplat.instance.material;
         material.setParameter('mode', cameraMode === 'rings' ? 1 : 0);
         material.setParameter('ringSize', (selected && cameraOverlay && cameraMode === 'rings') ? 0.04 : 0);
-        material.setParameter('ortho', this.scene.camera.ortho ? 1 : 0);
 
         const selectionAlpha = events.invoke('view.outlineSelection') ? 0 : this.selectionAlpha;
 

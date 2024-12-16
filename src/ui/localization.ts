@@ -28,14 +28,16 @@ const localizeInit = () => {
                     'scene.export.viewer': 'Viewer App',
 
                     // Selection menu
-                    'selection': 'Selektion',
-                    'selection.all': 'Alles',
-                    'selection.none': 'Aufheben',
-                    'selection.invert': 'Invertieren',
-                    'selection.lock': 'Selektion sperren',
-                    'selection.unlock': 'Sperre aufheben',
-                    'selection.delete': 'Selektion aufheben',
-                    'selection.reset': 'Splats zurücksetzen',
+                    'select': 'Auswahl',
+                    'select.all': 'Alles',
+                    'select.none': 'Aufheben',
+                    'select.invert': 'Invertieren',
+                    'select.lock': 'Selektion sperren',
+                    'select.unlock': 'Sperre aufheben',
+                    'select.delete': 'Selektion aufheben',
+                    'select.reset': 'Splats zurücksetzen',
+                    'select.duplicate': 'Duplizieren',
+                    'select.separate': 'Separieren',
 
                     // Help menu
                     'help': 'Hilfe',
@@ -66,7 +68,7 @@ const localizeInit = () => {
                     'options.selected-color': 'Selektierte Farbe',
                     'options.unselected-color': 'Nicht selektierte Farbe',
                     'options.locked-color': 'Gesperrte Farbe',
-                    'options.fov': 'Blickwinkel (FoV)',
+                    'options.fov': 'Sichtfeld (FoV)',
                     'options.sh-bands': 'SH Bänder',
                     'options.centers-size': 'Punktgrößen',
                     'options.outline-selection': 'Umriss Selektion',
@@ -149,6 +151,8 @@ const localizeInit = () => {
                     'tooltip.show-hide': 'Anzeigen/Ausplenden Splats ( Leertaste )',
                     'tooltip.frame-selection': 'Rechteckselektion ( F )',
                     'tooltip.camera-reset': 'Kamera zurücksetzen',
+                    'tooltip.camera-panel': 'Kamera Posen',
+                    'tooltip.color-panel': 'Farben',
                     'tooltip.view-options': 'Anzeige Optionen',
 
                     // Bottom toolbar
@@ -161,7 +165,20 @@ const localizeInit = () => {
                     'tooltip.translate': 'Verschieben ( 1 )',
                     'tooltip.rotate': 'Drehen ( 2 )',
                     'tooltip.scale': 'Skalieren ( 3 )',
-                    'tooltip.local-space': 'Gizmo in local-space'
+                    'tooltip.local-space': 'Gizmo in local-space',
+
+                    // Viewer Export
+                    'export.type': 'Export Typ',
+                    'export.html': 'HTML',
+                    'export.package': 'ZIP Paket',
+                    'export.sh-bands': 'SH Bänder',
+                    'export.start-position': 'Start Position',
+                    'export.default': 'Standard',
+                    'export.viewport': 'Aktuelle Ansicht',
+                    'export.pose-camera': '1. Kamera Pose',
+                    'export.fov': 'Sichtfeld (FoV)',
+                    'export.background-color': 'Hintergrund',
+                    'export.filename': 'Dateiname'
                 }
             },
             en: {
@@ -178,17 +195,19 @@ const localizeInit = () => {
                     'scene.export': 'Export',
                     'scene.export.compressed-ply': 'Compressed PLY (.ply)',
                     'scene.export.splat': 'Splat file (.splat)',
-                    'scene.export.viewer': 'Viewer App (.html)',
+                    'scene.export.viewer': 'Viewer App',
 
                     // Selection menu
-                    'selection': 'Selection',
-                    'selection.all': 'All',
-                    'selection.none': 'None',
-                    'selection.invert': 'Inverse',
-                    'selection.lock': 'Lock Selection',
-                    'selection.unlock': 'Unlock All',
-                    'selection.delete': 'Delete Selection',
-                    'selection.reset': 'Reset Splat',
+                    'select': 'Select',
+                    'select.all': 'All',
+                    'select.none': 'None',
+                    'select.invert': 'Invert',
+                    'select.lock': 'Lock Selection',
+                    'select.unlock': 'Unlock All',
+                    'select.delete': 'Delete Selection',
+                    'select.reset': 'Reset Splat',
+                    'select.duplicate': 'Duplicate',
+                    'select.separate': 'Separate',
 
                     // Help menu
                     'help': 'Help',
@@ -311,6 +330,8 @@ const localizeInit = () => {
                     'tooltip.show-hide': 'Show/Hide Splats ( Space )',
                     'tooltip.frame-selection': 'Frame Selection ( F )',
                     'tooltip.camera-reset': 'Reset Camera',
+                    'tooltip.camera-panel': 'Camera Poses',
+                    'tooltip.color-panel': 'Colors',
                     'tooltip.view-options': 'View Options',
 
                     // Bottom toolbar
@@ -323,7 +344,20 @@ const localizeInit = () => {
                     'tooltip.translate': 'Translate ( 1 )',
                     'tooltip.rotate': 'Rotate ( 2 )',
                     'tooltip.scale': 'Scale ( 3 )',
-                    'tooltip.local-space': 'Local Space Gizmo'
+                    'tooltip.local-space': 'Local Space Gizmo',
+
+                    // Viewer Export
+                    'export.type': 'Export Type',
+                    'export.html': 'HTML',
+                    'export.package': 'ZIP Package',
+                    'export.sh-bands': 'SH Bands',
+                    'export.start-position': 'Start Position',
+                    'export.default': 'Default',
+                    'export.viewport': 'Current Viewport',
+                    'export.pose-camera': '1st Camera Pose',
+                    'export.fov': 'Field of View',
+                    'export.background-color': 'Background',
+                    'export.filename': 'Filename'
                 }
             },
             fr: {
@@ -343,14 +377,16 @@ const localizeInit = () => {
                     'scene.export.viewer': 'Application de visualisation',
 
                     // Selection menu
-                    'selection': 'Sélection',
-                    'selection.all': 'Tout',
-                    'selection.none': 'Aucune',
-                    'selection.invert': 'Inverser',
-                    'selection.lock': 'Verrouiller la sélection',
-                    'selection.unlock': 'Tout débloquer',
-                    'selection.delete': 'Supprimer la sélection',
-                    'selection.reset': 'Réinitialiser splat',
+                    'select': 'Sélection',
+                    'select.all': 'Tout',
+                    'select.none': 'Aucune',
+                    'select.invert': 'Inverser',
+                    'select.lock': 'Verrouiller la sélection',
+                    'select.unlock': 'Tout débloquer',
+                    'select.delete': 'Supprimer la sélection',
+                    'select.reset': 'Réinitialiser splat',
+                    'select.duplicate': 'Dupliquer',
+                    'select.separate': 'Séparer',
 
                     // Help menu
                     'help': 'Aide',
@@ -464,6 +500,8 @@ const localizeInit = () => {
                     'tooltip.show-hide': 'Afficher/cacher les splats ( Barre espace )',
                     'tooltip.frame-selection': 'Cadrer la sélection ( F )',
                     'tooltip.camera-reset': 'Réinitialiser la caméra',
+                    'tooltip.camera-panel': 'Poses de la caméra',
+                    'tooltip.color-panel': 'Couleurs',
                     'tooltip.view-options': 'Options d\'affichage',
 
                     // bottom toolbar
@@ -476,7 +514,20 @@ const localizeInit = () => {
                     'tooltip.translate': 'Translation ( 1 )',
                     'tooltip.rotate': 'Rotation ( 2 )',
                     'tooltip.scale': 'Échelle ( 3 )',
-                    'tooltip.local-space': 'Espace local gizmo'
+                    'tooltip.local-space': 'Espace local gizmo',
+
+                    // Viewer Export
+                    'export.type': 'Type d\'export',
+                    'export.html': 'HTML',
+                    'export.package': 'Package ZIP',
+                    'export.sh-bands': 'Bandes SH',
+                    'export.start-position': 'Position de départ',
+                    'export.default': 'Défaut',
+                    'export.viewport': 'Vue actuelle',
+                    'export.pose-camera': '1ère pose de caméra',
+                    'export.fov': 'Champ de vision',
+                    'export.background-color': 'Arrière-plan',
+                    'export.filename': 'Nom de fichier'
                 }
             },
             ja: {
@@ -493,17 +544,19 @@ const localizeInit = () => {
                     'scene.export': 'エクスポート',
                     'scene.export.compressed-ply': 'Compressed PLY (.ply)',
                     'scene.export.splat': 'Splat (.splat)',
-                    'scene.export.viewer': 'Viewer App (.html)',
+                    'scene.export.viewer': 'Viewer App',
 
                     // Selection menu
-                    'selection': '選択',
-                    'selection.all': '全て',
-                    'selection.none': '選択を解除',
-                    'selection.invert': '反転',
-                    'selection.lock': '選択をロック',
-                    'selection.unlock': 'ロックを解除',
-                    'selection.delete': '選択を削除',
-                    'selection.reset': '変更を全てリセット',
+                    'select': '選択',
+                    'select.all': '全て',
+                    'select.none': '選択を解除',
+                    'select.invert': '反転',
+                    'select.lock': '選択をロック',
+                    'select.unlock': 'ロックを解除',
+                    'select.delete': '選択を削除',
+                    'select.reset': '変更を全てリセット',
+                    'select.duplicate': '複製',
+                    'select.separate': '分離',
 
                     // Help menu
                     'help': 'ヘルプ',
@@ -617,6 +670,8 @@ const localizeInit = () => {
                     'tooltip.show-hide': 'スプラットの表示/非表示 ( Space )',
                     'tooltip.frame-selection': '選択をフレームイン ( F )',
                     'tooltip.camera-reset': 'カメラをリセット',
+                    'tooltip.camera-panel': 'カメラポーズ',
+                    'tooltip.color-panel': '色',
                     'tooltip.view-options': '表示オプション',
 
                     // Bottom toolbar
@@ -629,7 +684,20 @@ const localizeInit = () => {
                     'tooltip.translate': '移動 ( 1 )',
                     'tooltip.rotate': '回転 ( 2 )',
                     'tooltip.scale': 'スケール ( 3 )',
-                    'tooltip.local-space': 'ローカル座標へ切り替え'
+                    'tooltip.local-space': 'ローカル座標へ切り替え',
+
+                    // Viewer Export
+                    'export.type': 'エクスポートタイプ',
+                    'export.html': 'HTML',
+                    'export.package': 'ZIPパッケージ',
+                    'export.sh-bands': 'SHバンド',
+                    'export.start-position': '開始位置',
+                    'export.default': 'デフォルト',
+                    'export.viewport': '現在のビューポート',
+                    'export.pose-camera': '1番目のカメラポーズ',
+                    'export.fov': '視野角',
+                    'export.background-color': '背景色',
+                    'export.filename': 'ファイル名'
                 }
             },
             ko: {
@@ -649,14 +717,16 @@ const localizeInit = () => {
                     'scene.export.viewer': '뷰어 앱',
 
                     // Selection menu
-                    'selection': '선택',
-                    'selection.all': '모두',
-                    'selection.none': '없음',
-                    'selection.invert': '반전',
-                    'selection.lock': '선택 잠금',
-                    'selection.unlock': '모두 잠금 해제',
-                    'selection.delete': '선택 삭제',
-                    'selection.reset': 'Splat 재설정',
+                    'select': '선택',
+                    'select.all': '모두',
+                    'select.none': '없음',
+                    'select.invert': '반전',
+                    'select.lock': '선택 잠금',
+                    'select.unlock': '모두 잠금 해제',
+                    'select.delete': '선택 삭제',
+                    'select.reset': 'Splat 재설정',
+                    'select.duplicate': '복제',
+                    'select.separate': '분리',
 
                     // Help menu
                     'help': '도움말',
@@ -770,6 +840,8 @@ const localizeInit = () => {
                     'tooltip.show-hide': '스플래츠 표시/숨기기 ( Space )',
                     'tooltip.frame-selection': '프레임 선택 ( F )',
                     'tooltip.camera-reset': '카메라 재설정',
+                    'tooltip.camera-panel': '카메라 포즈',
+                    'tooltip.color-panel': '색상',
                     'tooltip.view-options': '보기 옵션',
 
                     // Bottom toolbar
@@ -782,7 +854,20 @@ const localizeInit = () => {
                     'tooltip.translate': '이동 ( 1 )',
                     'tooltip.rotate': '회전 ( 2 )',
                     'tooltip.scale': '크기 조정 ( 3 )',
-                    'tooltip.local-space': '로컬 공간'
+                    'tooltip.local-space': '로컬 공간',
+
+                    // Viewer Export
+                    'export.type': '내보내기 유형',
+                    'export.html': 'HTML',
+                    'export.package': 'ZIP 패키지',
+                    'export.sh-bands': 'SH 밴드',
+                    'export.start-position': '시작 위치',
+                    'export.default': '기본값',
+                    'export.viewport': '현재 뷰포트',
+                    'export.pose-camera': '1번째 카메라 포즈',
+                    'export.fov': '시야각',
+                    'export.background-color': '배경색',
+                    'export.filename': '파일 이름'
                 }
             },
             'zh-CN': {
@@ -802,14 +887,16 @@ const localizeInit = () => {
                     'scene.export.viewer': '查看器应用',
 
                     // Selection menu
-                    'selection': '选择',
-                    'selection.all': '全部',
-                    'selection.none': '无',
-                    'selection.invert': '反选',
-                    'selection.lock': '锁定选择',
-                    'selection.unlock': '解锁全部',
-                    'selection.delete': '删除选择',
-                    'selection.reset': '重置 Splat',
+                    'select': '选择',
+                    'select.all': '全部',
+                    'select.none': '无',
+                    'select.invert': '反选',
+                    'select.lock': '锁定选择',
+                    'select.unlock': '解锁全部',
+                    'select.delete': '删除选择',
+                    'select.reset': '重置 Splat',
+                    'select.duplicate': '复制',
+                    'select.separate': '分离',
 
                     // Help menu
                     'help': '帮助',
@@ -923,6 +1010,8 @@ const localizeInit = () => {
                     'tooltip.show-hide': '显示/隐藏 Splats ( Space )',
                     'tooltip.frame-selection': '框选 ( F )',
                     'tooltip.camera-reset': '重置相机',
+                    'tooltip.camera-panel': '相机姿势',
+                    'tooltip.color-panel': '颜色',
                     'tooltip.view-options': '视图选项',
 
                     // Bottom toolbar
@@ -935,7 +1024,20 @@ const localizeInit = () => {
                     'tooltip.translate': '移动 ( 1 )',
                     'tooltip.rotate': '旋转 ( 2 )',
                     'tooltip.scale': '缩放 ( 3 )',
-                    'tooltip.local-space': '局部坐标系'
+                    'tooltip.local-space': '局部坐标系',
+
+                    // Viewer Export
+                    'export.type': '导出类型',
+                    'export.html': 'HTML',
+                    'export.package': 'ZIP 包',
+                    'export.sh-bands': 'SH 带',
+                    'export.start-position': '起始位置',
+                    'export.default': '默认',
+                    'export.viewport': '当前视口',
+                    'export.pose-camera': '第一个相机姿势',
+                    'export.fov': '视野角',
+                    'export.background-color': '背景颜色',
+                    'export.filename': '文件名'
                 }
             }
         },
