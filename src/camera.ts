@@ -4,10 +4,16 @@ import {
     FILTER_NEAREST,
     PIXELFORMAT_RGBA8,
     PIXELFORMAT_DEPTH,
+    PROJECTION_ORTHOGRAPHIC,
+    PROJECTION_PERSPECTIVE,
+    TONEMAP_ACES,
+    TONEMAP_ACES2,
+    TONEMAP_FILMIC,
+    TONEMAP_HEJL,
+    TONEMAP_LINEAR,
+    TONEMAP_NEUTRAL,
     BoundingBox,
     Entity,
-    Layer,
-    Mat4,
     Picker,
     Plane,
     Ray,
@@ -15,14 +21,7 @@ import {
     Texture,
     Vec3,
     Vec4,
-    WebglGraphicsDevice,
-    PROJECTION_ORTHOGRAPHIC,
-    PROJECTION_PERSPECTIVE,
-    TONEMAP_LINEAR,
-    TONEMAP_FILMIC,
-    TONEMAP_HEJL,
-    TONEMAP_ACES,
-    TONEMAP_ACES2
+    WebglGraphicsDevice
 } from 'playcanvas';
 
 import { PointerController } from './controllers';
@@ -50,9 +49,6 @@ const ray = new Ray();
 const vec = new Vec3();
 const vecb = new Vec3();
 const va = new Vec3();
-const vb = new Vec3();
-const vc = new Vec3();
-const v4 = new Vec4();
 
 // modulo dealing with negative numbers
 const mod = (n: number, m: number) => ((n % m) + m) % m;
@@ -62,12 +58,12 @@ class Camera extends Element {
     entity: Entity;
     focalPointTween = new TweenValue({ x: 0, y: 0.5, z: 0 });
     azimElevTween = new TweenValue({ azim: 30, elev: -15 });
-    distanceTween = new TweenValue({ distance: 2 });
+    distanceTween = new TweenValue({ distance: 1 });
 
     minElev = -90;
     maxElev = 90;
 
-    sceneRadius = 5;
+    sceneRadius = 1;
 
     flySpeed = 5;
 
@@ -206,8 +202,8 @@ class Camera extends Element {
             this.scene.gizmoLayer.id
         ]);
 
-        if (this.scene.config.camera.debug_render) {
-            this.entity.camera.setShaderPass(`debug_${this.scene.config.camera.debug_render}`);
+        if (this.scene.config.camera.debugRender) {
+            this.entity.camera.setShaderPass(`debug_${this.scene.config.camera.debugRender}`);
         }
 
         const target = document.getElementById('canvas-container');
@@ -225,12 +221,13 @@ class Camera extends Element {
         this.maxElev = (controls.maxPolarAngle * 180) / Math.PI - 90;
 
         // tonemapping
-        this.scene.app.scene.rendering.toneMapping = {
+        this.scene.camera.entity.camera.toneMapping = {
             linear: TONEMAP_LINEAR,
             filmic: TONEMAP_FILMIC,
             hejl: TONEMAP_HEJL,
             aces: TONEMAP_ACES,
-            aces2: TONEMAP_ACES2
+            aces2: TONEMAP_ACES2,
+            neutral: TONEMAP_NEUTRAL
         }[config.camera.toneMapping];
 
         // exposure
@@ -251,11 +248,6 @@ class Camera extends Element {
         this.picker.releaseRenderTarget = () => { };
 
         this.scene.events.on('scene.boundChanged', this.onBoundChanged, this);
-
-        // multiple elements in the scene require this callback
-        this.entity.camera.onPreRenderLayer = (layer: Layer, transparent: boolean) => {
-            this.scene.events.fire('camera.preRenderLayer', layer, transparent);
-        };
 
         // prepare camera-specific uniforms
         this.updateCameraUniforms = () => {
@@ -313,7 +305,7 @@ class Camera extends Element {
     // also update the existing camera distance to maintain the current view
     onBoundChanged(bound: BoundingBox) {
         const prevDistance = this.distanceTween.value.distance * this.sceneRadius;
-        this.sceneRadius = bound.halfExtents.length();
+        this.sceneRadius = Math.max(1e-03, bound.halfExtents.length());
         this.setDistance(prevDistance / this.sceneRadius, 0);
     }
 
@@ -417,9 +409,15 @@ class Camera extends Element {
         vec.sub2(bound.center, cameraPosition);
         const dist = vec.dot(forwardVec);
 
-        this.far = dist + boundRadius;
-        // if camera is placed inside the sphere bound calculate near based far
-        this.near = Math.max(1e-6, dist < boundRadius ? this.far / (1024 * 16) : dist - boundRadius);
+        if (dist > 0) {
+            this.far = dist + boundRadius;
+            // if camera is placed inside the sphere bound calculate near based far
+            this.near = Math.max(1e-6, dist < boundRadius ? this.far / (1024 * 16) : dist - boundRadius);
+        } else {
+            // if the scene is behind the camera
+            this.far = boundRadius * 2;
+            this.near = this.far / (1024 * 16);
+        }
     }
 
     onPreRender() {
@@ -488,7 +486,7 @@ class Camera extends Element {
         for (let i = 0; i < splats.length; ++i) {
             const splat = splats[i] as Splat;
 
-            this.pickPrep(splat);
+            this.pickPrep(splat, 'set');
             const pickId = this.pick(sx, sy);
 
             if (pickId !== -1) {
@@ -535,7 +533,7 @@ class Camera extends Element {
     // pick mode
 
     // render picker contents
-    pickPrep(splat: Splat) {
+    pickPrep(splat: Splat, op: 'add'|'remove'|'set') {
         const { width, height } = this.scene.targetSize;
         const worldLayer = this.scene.app.scene.layers.getLayerByName('World');
 
@@ -550,6 +548,7 @@ class Camera extends Element {
         });
 
         device.scope.resolve('pickerAlpha').setValue(alpha);
+        device.scope.resolve('pickMode').setValue(['add', 'remove', 'set'].indexOf(op));
         this.picker.resize(width, height);
         this.picker.prepare(this.entity.camera, this.scene.app.scene, [worldLayer]);
 

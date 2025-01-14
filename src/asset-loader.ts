@@ -1,6 +1,5 @@
 import { Asset, AssetRegistry, GraphicsDevice, GSplatData, GSplatResource, TEXTURETYPE_RGBP } from 'playcanvas';
 
-import { Env } from './env';
 import { Events } from './events';
 import { Splat } from './splat';
 
@@ -9,11 +8,7 @@ interface ModelLoadRequest {
     contents?: ArrayBuffer;
     filename?: string;
     maxAnisotropy?: number;
-}
-
-interface EnvLoadRequest {
-    url: string;
-    filename?: string;
+    animationFrame?: boolean;       // animations disable morton re-ordering at load time for faster loading
 }
 
 // ideally this function would stream data directly into GSplatData buffers.
@@ -66,7 +61,6 @@ const deserializeFromSSplat = (data: ArrayBufferLike) => {
         storage_rot_3[i] = (dataView.getUint8(off + 31) - 128) / 128;
     }
 
-
     return new GSplatData([{
         name: 'vertex',
         count: totalSplats,
@@ -106,7 +100,9 @@ class AssetLoader {
     }
 
     loadPly(loadRequest: ModelLoadRequest) {
-        this.events.fire('startSpinner');
+        if (!loadRequest.animationFrame) {
+            this.events.fire('startSpinner');
+        }
 
         return new Promise<Splat>((resolve, reject) => {
             const asset = new Asset(
@@ -119,7 +115,9 @@ class AssetLoader {
                 },
                 {
                     // decompress data on load
-                    decompress: true
+                    decompress: true,
+                    // disable morton re-ordering when loading animation frames
+                    reorder: !(loadRequest.animationFrame ?? false)
                 }
             );
 
@@ -150,12 +148,16 @@ class AssetLoader {
                 }
             });
 
-            asset.on('error', (err: string) => reject(err));
+            asset.on('error', (err: string) => {
+                reject(err);
+            });
 
             this.registry.add(asset);
             this.registry.load(asset);
         }).finally(() => {
-            this.events.fire('stopSpinner');
+            if (!loadRequest.animationFrame) {
+                this.events.fire('stopSpinner');
+            }
         });
     }
 
@@ -196,20 +198,6 @@ class AssetLoader {
         } else if (filename.endsWith('.splat')) {
             return this.loadSplat(loadRequest);
         }
-    }
-
-    loadEnv(loadRequest: EnvLoadRequest) {
-        const registry = this.registry;
-        return new Promise<Env>((resolve, reject) => {
-            const textureAsset = new Asset('skybox_equi', 'texture', loadRequest, {
-                mipmaps: false,
-                type: TEXTURETYPE_RGBP
-            });
-            textureAsset.ready(() => resolve(new Env(textureAsset)));
-            textureAsset.on('error', (err: string) => reject(err));
-            registry.add(textureAsset);
-            registry.load(textureAsset);
-        });
     }
 }
 

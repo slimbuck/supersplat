@@ -1,10 +1,11 @@
 import { Color, createGraphicsDevice } from 'playcanvas';
 
+import { registerAnimationEvents } from './animation';
 import { EditHistory } from './edit-history';
 import { registerEditorEvents } from './editor';
 import { Events } from './events';
 import { initFileHandler } from './file-handler';
-import { initMaterials } from './material';
+import { registerPublishEvents } from './publish';
 import { Scene } from './scene';
 import { getSceneConfig } from './scene-config';
 import { registerSelectionEvents } from './selection';
@@ -76,15 +77,15 @@ const initShortcuts = (events: Events) => {
     shortcuts.register(['P', 'p'], { event: 'tool.polygonSelection', sticky: true });
     shortcuts.register(['L', 'l'], { event: 'tool.lassoSelection', sticky: true });
     shortcuts.register(['B', 'b'], { event: 'tool.brushSelection', sticky: true });
-    shortcuts.register(['A', 'a'], { event: 'select.all' });
+    shortcuts.register(['A', 'a'], { event: 'select.all', ctrl: true });
     shortcuts.register(['A', 'a'], { event: 'select.none', shift: true });
-    shortcuts.register(['I', 'i'], { event: 'select.invert' });
+    shortcuts.register(['I', 'i'], { event: 'select.invert', ctrl: true });
     shortcuts.register(['H', 'h'], { event: 'select.hide' });
     shortcuts.register(['U', 'u'], { event: 'select.unhide' });
     shortcuts.register(['['], { event: 'tool.brushSelection.smaller' });
     shortcuts.register([']'], { event: 'tool.brushSelection.bigger' });
-    shortcuts.register(['Z', 'z'], { event: 'edit.undo', ctrl: true });
-    shortcuts.register(['Z', 'z'], { event: 'edit.redo', ctrl: true, shift: true });
+    shortcuts.register(['Z', 'z'], { event: 'edit.undo', ctrl: true, capture: true });
+    shortcuts.register(['Z', 'z'], { event: 'edit.redo', ctrl: true, shift: true, capture: true });
     shortcuts.register(['M', 'm'], { event: 'camera.toggleMode' });
     shortcuts.register(['D', 'd'], { event: 'dataPanel.toggle' });
     shortcuts.register([' '], { event: 'camera.toggleOverlay' });
@@ -93,6 +94,10 @@ const initShortcuts = (events: Events) => {
 };
 
 const main = async () => {
+    // root events object
+    const events = new Events();
+
+    // url
     const url = new URL(window.location.href);
 
     // decode remote storage details
@@ -101,8 +106,9 @@ const main = async () => {
         remoteStorageDetails = JSON.parse(decodeURIComponent(url.searchParams.get('remoteStorage')));
     } catch (e) { }
 
-    // root events object
-    const events = new Events();
+    events.function('app.publish', () => {
+        return url.searchParams.get('publish') !== null;
+    });
 
     // edit history
     const editHistory = new EditHistory(events);
@@ -120,9 +126,6 @@ const main = async () => {
         powerPreference: 'high-performance'
     });
 
-    // monkey-patch materials for premul alpha rendering
-    initMaterials();
-
     const overrides = [
         getURLArgs()
     ];
@@ -139,10 +142,10 @@ const main = async () => {
     );
 
     // colors
-    const bgClr = new Color(0, 0, 0, 1);
-    const selectedClr = new Color(1, 1, 0, 1.0);
-    const unselectedClr = new Color(0, 0, 1, 0.5);
-    const lockedClr = new Color(0, 0, 0, 0.05);
+    const bgClr = new Color();
+    const selectedClr = new Color();
+    const unselectedClr = new Color();
+    const lockedClr = new Color();
 
     const setClr = (target: Color, value: Color, event: string) => {
         if (!target.equals(value)) {
@@ -204,7 +207,14 @@ const main = async () => {
         scene.forceRender = true;
     });
 
-    setBgClr(new Color(sceneConfig.bgClr.r, sceneConfig.bgClr.g, sceneConfig.bgClr.b, 1));
+    // initialize colors from application config
+    const toColor = (value: { r: number, g: number, b: number, a: number }) => {
+        return new Color(value.r, value.g, value.b, value.a);
+    };
+    setBgClr(toColor(sceneConfig.bgClr));
+    setSelectedClr(toColor(sceneConfig.selectedClr));
+    setUnselectedClr(toColor(sceneConfig.unselectedClr));
+    setLockedClr(toColor(sceneConfig.lockedClr));
 
     // create the mask selection canvas
     const maskCanvas = document.createElement('canvas');
@@ -235,11 +245,13 @@ const main = async () => {
     registerEditorEvents(events, editHistory, scene);
     registerSelectionEvents(events, scene);
     registerTransformHandlerEvents(events);
+    registerAnimationEvents(events);
+    registerPublishEvents(events);
     initShortcuts(events);
-    await initFileHandler(scene, events, editorUI.appContainer.dom, remoteStorageDetails);
+    initFileHandler(scene, events, editorUI.appContainer.dom, remoteStorageDetails);
 
     // load async models
-    await scene.load();
+    scene.start();
 
     // handle load params
     const loadList = url.searchParams.getAll('load');
