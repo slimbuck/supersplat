@@ -50,6 +50,7 @@ class Underlay extends Element {
         );
 
         this.entity.camera.on('postRenderLayer', (layer: Layer, transparent: boolean) => {
+            /* TMP disable webgpu
             if (!this.entity.enabled || layer !== this.scene.overlayLayer || !transparent) {
                 return;
             }
@@ -63,6 +64,7 @@ class Underlay extends Element {
             glDevice.updateBegin();
             this.quadRender.render();
             glDevice.updateEnd();
+            */
         });
     }
 

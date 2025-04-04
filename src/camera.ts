@@ -2,7 +2,6 @@ import {
     math,
     ADDRESS_CLAMP_TO_EDGE,
     FILTER_NEAREST,
-    PIXELFORMAT_RGBA8,
     PIXELFORMAT_DEPTH,
     PROJECTION_ORTHOGRAPHIC,
     PROJECTION_PERSPECTIVE,
@@ -392,8 +391,10 @@ class Camera extends Element {
             });
         };
 
+        const format = device.backBufferFormat;
+
         // in with the new
-        const colorBuffer = createTexture('cameraColor', width, height, PIXELFORMAT_RGBA8);
+        const colorBuffer = createTexture('cameraColor', width, height, format);
         const depthBuffer = createTexture('cameraDepth', width, height, PIXELFORMAT_DEPTH);
         const renderTarget = new RenderTarget({
             colorBuffer,
@@ -404,7 +405,7 @@ class Camera extends Element {
         this.entity.camera.renderTarget = renderTarget;
         this.entity.camera.horizontalFov = width > height;
 
-        const workColorBuffer = createTexture('workColor', width, height, PIXELFORMAT_RGBA8);
+        const workColorBuffer = createTexture('workColor', width, height, format);
 
         // create pick mode render target (reuse color buffer)
         this.workRenderTarget = new RenderTarget({
