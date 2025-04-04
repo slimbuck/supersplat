@@ -311,7 +311,7 @@ class DataProcessor {
 
     // use gpu to calculate either bound of the currently selected splats or the bound of
     // all visible splats
-    calcBound(splat: Splat, boundingBox: BoundingBox, onlySelected: boolean) {
+    calcBound(splat: Splat, boundingBox: BoundingBox, onlySelected: boolean, doneCallback: () => void) {
         const device = splat.scene.graphicsDevice;
         const { scope } = device;
 
@@ -337,33 +337,42 @@ class DataProcessor {
             mode: onlySelected ? 0 : 1
         });
 
-        const glDevice = device as WebglGraphicsDevice;
-
         device.setBlendState(BlendState.NOBLEND);
         drawQuadWithShader(device, resources.renderTarget, resources.shader);
-        glDevice.gl.readPixels(0, 0, transformA.width, 1, resources.minTexture.impl._glFormat, resources.minTexture.impl._glPixelType, resources.minData);
 
-        glDevice.setRenderTarget(resources.maxRenderTarget);
-        glDevice.updateBegin();
-        glDevice.gl.readPixels(0, 0, transformA.width, 1, resources.maxTexture.impl._glFormat, resources.maxTexture.impl._glPixelType, resources.maxData);
-        glDevice.updateEnd();
-
-        // resolve mins/maxs
         const { minData, maxData } = resources;
-        v1.set(minData[0], minData[1], minData[2]);
-        v2.set(maxData[0], maxData[1], maxData[2]);
 
-        for (let i = 1; i < transformA.width; i++) {
-            v1.x = Math.min(v1.x, minData[i * 4]);
-            v1.y = Math.min(v1.y, minData[i * 4 + 1]);
-            v1.z = Math.min(v1.z, minData[i * 4 + 2]);
+        resources.minTexture.read(0, 0, transformA.width, 1, {
+            data: minData,
+            immediate: true
+        }).then(() => {
+            console.log('minData', minData);
 
-            v2.x = Math.max(v2.x, maxData[i * 4]);
-            v2.y = Math.max(v2.y, maxData[i * 4 + 1]);
-            v2.z = Math.max(v2.z, maxData[i * 4 + 2]);
-        }
+            resources.maxTexture.read(0, 0, transformA.width, 1, {
+                data: maxData,
+                immediate: true
+            })
+            .then(() => {
+                console.log('maxData', maxData);
 
-        boundingBox.setMinMax(v1, v2);
+                v1.set(minData[0], minData[1], minData[2]);
+                v2.set(maxData[0], maxData[1], maxData[2]);
+
+                for (let i = 1; i < transformA.width; i++) {
+                    v1.x = Math.min(v1.x, minData[i * 4]);
+                    v1.y = Math.min(v1.y, minData[i * 4 + 1]);
+                    v1.z = Math.min(v1.z, minData[i * 4 + 2]);
+
+                    v2.x = Math.max(v2.x, maxData[i * 4]);
+                    v2.y = Math.max(v2.y, maxData[i * 4 + 1]);
+                    v2.z = Math.max(v2.z, maxData[i * 4 + 2]);
+                }
+
+                boundingBox.setMinMax(v1, v2);
+
+                doneCallback();
+            })
+        });
     }
 
     // calculate world-space splat positions

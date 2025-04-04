@@ -426,13 +426,18 @@ class Splat extends Element {
     }
 
     makeSelectionBoundDirty() {
-        this.selectionBoundDirty = true;
-        this.makeLocalBoundDirty();
+        const selectionBound = this.selectionBoundStorage;
+        this.scene.dataProcessor.calcBound(this, selectionBound, true, () => {
+            this.makeLocalBoundDirty();
+        });
     }
 
     makeLocalBoundDirty() {
-        this.localBoundDirty = true;
-        this.makeWorldBoundDirty();
+        const localBound = this.localBoundStorage;
+        this.scene.dataProcessor.calcBound(this, localBound, false, () => {
+            this.entity.getWorldTransform().transformPoint(localBound.center, vec);
+            this.makeWorldBoundDirty();
+        });
     }
 
     makeWorldBoundDirty() {
@@ -442,23 +447,12 @@ class Splat extends Element {
 
     // get the selection bound
     get selectionBound() {
-        const selectionBound = this.selectionBoundStorage;
-        if (this.selectionBoundDirty) {
-            this.scene.dataProcessor.calcBound(this, selectionBound, true);
-            this.selectionBoundDirty = false;
-        }
-        return selectionBound;
+        return this.selectionBoundStorage;
     }
 
     // get local space bound
     get localBound() {
-        const localBound = this.localBoundStorage;
-        if (this.localBoundDirty) {
-            this.scene.dataProcessor.calcBound(this, localBound, false);
-            this.localBoundDirty = false;
-            this.entity.getWorldTransform().transformPoint(localBound.center, vec);
-        }
-        return localBound;
+        return this.localBoundStorage;
     }
 
     // get world space bound

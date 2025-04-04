@@ -80,6 +80,7 @@ class Scene {
         // @ts-ignore
         this.app._allowResize = false;
         this.app.scene.clusteredLightingEnabled = false;
+        this.app.scene.lighting.shadowsEnabled = false;
 
         // hack: disable lightmapper first bake until we expose option for this
         // @ts-ignore
@@ -204,16 +205,16 @@ class Scene {
         this.camera = new Camera();
         this.add(this.camera);
 
-        this.splatOverlay = new SplatOverlay();
-        this.add(this.splatOverlay);
+        // this.splatOverlay = new SplatOverlay();
+        // this.add(this.splatOverlay);
 
         this.grid = new Grid();
         this.add(this.grid);
 
-        this.outline = new Outline();
-        this.add(this.outline);
-        this.underlay = new Underlay();
-        this.add(this.underlay);
+        // this.outline = new Outline();
+        // this.add(this.outline);
+        // this.underlay = new Underlay();
+        // this.add(this.underlay);
     }
 
     start() {
