@@ -628,17 +628,27 @@ class Camera extends Element {
 
         // decode
         const result: number[] = [];
-        for (let i = 0; i < width * height; i++) {
-            const idx = device.isWebGL2 ?
-                (pixels[i * 4]) |
-                (pixels[i * 4 + 1] << 8) |
-                (pixels[i * 4 + 2] << 16) |
-                (pixels[i * 4 + 3] << 24) :
-                    (pixels[i * 4] << 16) |
+        if (device.isWebGL2) {
+            for (let i = 0; i < width * height; i++) {
+                const idx =
+                    (pixels[i * 4]) |
                     (pixels[i * 4 + 1] << 8) |
-                    (pixels[i * 4 + 2]) |
+                    (pixels[i * 4 + 2] << 16) |
                     (pixels[i * 4 + 3] << 24);
-            result.push(idx >>> 0);
+                result.push(idx >>> 0);
+            }
+        } else {
+            for (let y = 0; y < height; y++) {
+                for (let x = 0; x < width; x++) {
+                    const i = (y * width + x) * 4;
+                    const idx =
+                        (pixels[i * 4] << 16) |
+                        (pixels[i * 4 + 1] << 8) |
+                        (pixels[i * 4 + 2]) |
+                        (pixels[i * 4 + 3] << 24);
+                    result[(height - y - 1) * width + x] = idx >>> 0;
+                }
+            }
         }
 
         return result;

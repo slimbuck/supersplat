@@ -268,78 +268,87 @@ const registerEditorEvents = (events: Events, editHistory: EditHistory, scene: S
     events.on('select.byMask', (op: 'add'|'remove'|'set', canvas: HTMLCanvasElement, context: CanvasRenderingContext2D) => {
         const mode = events.invoke('camera.mode');
 
-        selectedSplats().forEach((splat) => {
-            if (mode === 'centers') {
-                // create mask texture
-                if (maskTexture?._levels?.[0] !== canvas) {
-                    if (maskTexture) {
-                        maskTexture.destroy();
-                    }
-
-                    maskTexture = new Texture(scene.graphicsDevice, {
-                        name: 'mask',
-                        width: canvas.width,
-                        height: canvas.height,
-                        minFilter: FILTER_LINEAR,
-                        magFilter: FILTER_LINEAR,
-                        mipmaps: false,
-                        levels: [canvas]
-                    });
+        if (mode === 'centers') {
+            // update mask texture
+            if (maskTexture?._levels?.[0] !== canvas) {
+                if (maskTexture) {
+                    maskTexture.destroy();
                 }
 
-                maskTexture.upload();
+                maskTexture = new Texture(scene.graphicsDevice, {
+                    name: 'mask',
+                    width: canvas.width,
+                    height: canvas.height,
+                    minFilter: FILTER_LINEAR,
+                    magFilter: FILTER_LINEAR,
+                    mipmaps: false,
+                    levels: [canvas]
+                });
+            }
 
+            maskTexture.upload();
+
+            selectedSplats().forEach((splat) => {
                 intersectCenters(splat, op, {
                     mask: maskTexture
                 });
-            } else if (mode === 'rings') {
-                const mask = context.getImageData(0, 0, canvas.width, canvas.height);
+            });
+        } else if (mode === 'rings') {
+            // get mask pixels
+            const mask = context.getImageData(0, 0, canvas.width, canvas.height);
+            const splats = selectedSplats();
 
-                // calculate mask bound so we limit pixel operations
-                let mx0 = mask.width - 1;
-                let my0 = mask.height - 1;
-                let mx1 = 0;
-                let my1 = 0;
-                for (let y = 0; y < mask.height; ++y) {
-                    for (let x = 0; x < mask.width; ++x) {
-                        if (mask.data[(y * mask.width + x) * 4 + 3] === 255) {
-                            mx0 = Math.min(mx0, x);
-                            my0 = Math.min(my0, y);
-                            mx1 = Math.max(mx1, x);
-                            my1 = Math.max(my1, y);
-                        }
+            // calculate mask bound so we limit pixel operations
+            let mx0 = mask.width - 1;
+            let my0 = mask.height - 1;
+            let mx1 = 0;
+            let my1 = 0;
+            for (let y = 0; y < mask.height; ++y) {
+                for (let x = 0; x < mask.width; ++x) {
+                    if (mask.data[(y * mask.width + x) * 4 + 3] === 255) {
+                        mx0 = Math.min(mx0, x);
+                        my0 = Math.min(my0, y);
+                        mx1 = Math.max(mx1, x);
+                        my1 = Math.max(my1, y);
                     }
                 }
+            }
 
-                const { width, height } = scene.targetSize;
-                const px0 = Math.floor(mx0 / mask.width * width);
-                const py0 = Math.floor(my0 / mask.height * height);
-                const px1 = Math.floor(mx1 / mask.width * width);
-                const py1 = Math.floor(my1 / mask.height * height);
-                const pw = px1 - px0 + 1;
-                const ph = py1 - py0 + 1;
+            const { width, height } = scene.targetSize;
+            const px0 = Math.floor(mx0 / mask.width * width);
+            const py0 = Math.floor(my0 / mask.height * height);
+            const px1 = Math.floor(mx1 / mask.width * width);
+            const py1 = Math.floor(my1 / mask.height * height);
+            const pw = px1 - px0 + 1;
+            const ph = py1 - py0 + 1;
+
+            for (let i = 0; i < splats.length; ++i) {
+                const splat = splats[i];
 
                 scene.camera.pickPrep(splat, op);
-                const pick = scene.camera.pickRect(px0, py0, pw, ph);
 
-                const selected = new Set<number>();
-                for (let y = 0; y < ph; ++y) {
-                    for (let x = 0; x < pw; ++x) {
-                        const mx = Math.floor((px0 + x) / width * mask.width);
-                        const my = Math.floor((py0 + y) / height * mask.height);
-                        if (mask.data[(my * mask.width + mx) * 4] === 255) {
-                            selected.add(pick[(ph - y) * pw + x]);
+                // FIXME: this only works with 1 selected splat (which is currently the case)
+                scene.camera.pickRect(px0, py0, pw, ph)
+                .then((pick: number[]) => {
+                    const selected = new Set<number>();
+                    for (let y = 0; y < ph; ++y) {
+                        for (let x = 0; x < pw; ++x) {
+                            const mx = Math.floor((px0 + x) / width * mask.width);
+                            const my = Math.floor((py0 + y) / height * mask.height);
+                            if (mask.data[(my * mask.width + mx) * 4] === 255) {
+                                selected.add(pick[(ph - y) * pw + x]);
+                            }
                         }
                     }
-                }
 
-                const filter = (i: number) => {
-                    return selected.has(i);
-                };
+                    const filter = (i: number) => {
+                        return selected.has(i);
+                    };
 
-                events.fire('edit.add', new SelectOp(splat, op, filter));
+                    events.fire('edit.add', new SelectOp(splat, op, filter));
+                });
             }
-        });
+        }
     });
 
     events.on('select.point', (op: 'add'|'remove'|'set', point: { x: number, y: number }) => {
