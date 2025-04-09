@@ -1,4 +1,4 @@
-import { Color, Mat4, Texture, Vec3, Vec4 } from 'playcanvas';
+import { Color, FILTER_LINEAR, Mat4, Texture, Vec3, Vec4 } from 'playcanvas';
 
 import { EditHistory } from './edit-history';
 import { SelectAllOp, SelectNoneOp, SelectInvertOp, SelectOp, HideSelectionOp, UnhideAllOp, DeleteSelectionOp, ResetOp, MultiOp, AddSplatOp } from './edit-ops';
@@ -271,13 +271,23 @@ const registerEditorEvents = (events: Events, editHistory: EditHistory, scene: S
         selectedSplats().forEach((splat) => {
             if (mode === 'centers') {
                 // create mask texture
-                if (!maskTexture || maskTexture.width !== canvas.width || maskTexture.height !== canvas.height) {
+                if (maskTexture?._levels?.[0] !== canvas) {
                     if (maskTexture) {
                         maskTexture.destroy();
                     }
-                    maskTexture = new Texture(scene.graphicsDevice);
+
+                    maskTexture = new Texture(scene.graphicsDevice, {
+                        name: 'mask',
+                        width: canvas.width,
+                        height: canvas.height,
+                        minFilter: FILTER_LINEAR,
+                        magFilter: FILTER_LINEAR,
+                        mipmaps: false,
+                        levels: [canvas]
+                    });
                 }
-                maskTexture.setSource(canvas);
+
+                maskTexture.upload();
 
                 intersectCenters(splat, op, {
                     mask: maskTexture
