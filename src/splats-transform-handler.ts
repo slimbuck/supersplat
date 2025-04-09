@@ -131,8 +131,9 @@ class SplatsTransformHandler implements TransformHandler {
         });
 
         splat.selectionAlpha = 0;
-        splat.scene.outline.enabled = false;
-        splat.scene.underlay.enabled = false;
+        // FIXME:
+        // splat.scene.outline.enabled = false;
+        // splat.scene.underlay.enabled = false;
     }
 
     update(transform: Transform) {
@@ -161,6 +162,7 @@ class SplatsTransformHandler implements TransformHandler {
         // for render during drag (which is slower).
         splat.updatePositions();
         splat.selectionAlpha = 1;
+        // FIXME:
         // splat.scene.outline.enabled = true;
         // splat.scene.underlay.enabled = true;
 
