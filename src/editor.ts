@@ -223,9 +223,10 @@ const registerEditorEvents = (events: Events, editHistory: EditHistory, scene: S
     });
 
     const intersectCenters = (splat: Splat, op: 'add'|'remove'|'set', options: any) => {
-        const data = scene.dataProcessor.intersect(options, splat);
-        const filter = (i: number) => data[i] === 255;
-        events.fire('edit.add', new SelectOp(splat, op, filter));
+        scene.dataProcessor.intersect(options, splat, (data: Uint8Array) => {
+            const filter = (i: number) => data[i] === 255;
+            events.fire('edit.add', new SelectOp(splat, op, filter));
+        });
     };
 
     events.on('select.bySphere', (op: 'add'|'remove'|'set', sphere: number[]) => {
@@ -248,19 +249,16 @@ const registerEditorEvents = (events: Events, editHistory: EditHistory, scene: S
                 const { width, height } = scene.targetSize;
 
                 scene.camera.pickPrep(splat, op);
-                const pick = scene.camera.pickRect(
+                scene.camera.pickRect(
                     Math.floor(rect.start.x * width),
                     Math.floor(rect.start.y * height),
                     Math.floor((rect.end.x - rect.start.x) * width),
                     Math.floor((rect.end.y - rect.start.y) * height)
-                );
-
-                const selected = new Set<number>(pick);
-                const filter = (i: number) => {
-                    return selected.has(i);
-                };
-
-                events.fire('edit.add', new SelectOp(splat, op, filter));
+                ).then((pick: number[]) => {
+                    const selected = new Set<number>(pick);
+                    const filter = (i: number) => selected.has(i);
+                    events.fire('edit.add', new SelectOp(splat, op, filter));
+                });
             }
         });
     });
@@ -365,18 +363,13 @@ const registerEditorEvents = (events: Events, editHistory: EditHistory, scene: S
                 events.fire('edit.add', new SelectOp(splat, op, filter));
             } else if (mode === 'rings') {
                 scene.camera.pickPrep(splat, op);
-
-                const pickId = scene.camera.pickRect(
-                    Math.floor(point.x * width),
-                    Math.floor(point.y * height),
-                    1, 1
-                )[0];
-
-                const filter = (i: number) => {
-                    return i === pickId;
-                };
-
-                events.fire('edit.add', new SelectOp(splat, op, filter));
+                scene.camera.pick(
+                    Math.floor(point.x * width), 
+                    Math.floor(point.y * height)
+                ).then((pickId) => {
+                    const filter = (i: number) => i === pickId;
+                    events.fire('edit.add', new SelectOp(splat, op, filter));
+                });
             }
         });
     });

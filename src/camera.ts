@@ -516,7 +516,7 @@ class Camera extends Element {
     }
 
     // intersect the scene at the given screen coordinate and focus the camera on this location
-    pickFocalPoint(screenX: number, screenY: number) {
+    async pickFocalPoint(screenX: number, screenY: number) {
         const scene = this.scene;
         const cameraPos = this.entity.getPosition();
 
@@ -534,9 +534,9 @@ class Camera extends Element {
             const splat = splats[i] as Splat;
 
             this.pickPrep(splat, 'set');
-            const pickId = this.pick(sx, sy);
+            const pickId = await this.pick(sx, sy);
 
-            if (pickId !== -1) {
+            if (pickId !== 0xffffffff) {
                 splat.calcSplatWorldPosition(pickId, vec);
 
                 // create a plane at the world position facing perpendicular to the camera
@@ -605,28 +605,40 @@ class Camera extends Element {
         });
     }
 
-    pick(x: number, y: number) {
-        return this.pickRect(x, y, 1, 1)[0];
+    async pick(x: number, y: number) {
+        const data = await this.pickRect(x, y, 1, 1);
+        return data[0];
     }
 
-    pickRect(x: number, y: number, width: number, height: number) {
+    async pickRect(x: number, y: number, width: number, height: number) {
         const device = this.scene.graphicsDevice as WebglGraphicsDevice;
         const pixels = new Uint8Array(width * height * 4);
 
         // read pixels
-        device.setRenderTarget(this.picker.renderTarget);
-        device.updateBegin();
-        device.readPixels(x, this.picker.renderTarget.height - y - height, width, height, pixels);
-        device.updateEnd();
+        await this.picker.renderTarget.colorBuffer.read(
+            x,
+            device.isWebGL2 ? this.picker.renderTarget.height - y - height : y,
+            width,
+            height,
+            {
+                data: pixels,
+                immediate: true
+            }
+        );
 
+        // decode
         const result: number[] = [];
         for (let i = 0; i < width * height; i++) {
-            result.push(
-                pixels[i * 4] |
+            const idx = device.isWebGL2 ?
+                (pixels[i * 4]) |
                 (pixels[i * 4 + 1] << 8) |
                 (pixels[i * 4 + 2] << 16) |
-                (pixels[i * 4 + 3] << 24)
-            );
+                (pixels[i * 4 + 3] << 24) :
+                    (pixels[i * 4] << 16) |
+                    (pixels[i * 4 + 1] << 8) |
+                    (pixels[i * 4 + 2]) |
+                    (pixels[i * 4 + 3] << 24);
+            result.push(idx >>> 0);
         }
 
         return result;

@@ -225,7 +225,7 @@ class DataProcessor {
     }
 
     // calculate the intersection of a mask canvas with splat centers
-    intersect(options: MaskOptions | RectOptions | SphereOptions, splat: Splat) {
+    intersect(options: MaskOptions | RectOptions | SphereOptions, splat: Splat, doneCallback: (data: Uint8Array) => void) {
         const { device } = this;
         const { scope } = device;
 
@@ -303,10 +303,13 @@ class DataProcessor {
         device.setBlendState(BlendState.NOBLEND);
         drawQuadWithShader(device, resources.renderTarget, resources.shader);
 
-        const glDevice = device as WebglGraphicsDevice;
-        glDevice.readPixels(0, 0, resources.texture.width, resources.texture.height, resources.data);
-
-        return resources.data;
+        const { texture, data } = resources;
+        resources.texture.read(0, 0, texture.width, texture.height, {
+            data,
+            immediate: true
+        }).then(() => {
+            doneCallback(data);
+        });
     }
 
     // use gpu to calculate either bound of the currently selected splats or the bound of
@@ -351,8 +354,7 @@ class DataProcessor {
             resources.maxTexture.read(0, 0, transformA.width, 1, {
                 data: maxData,
                 immediate: true
-            })
-            .then(() => {
+            }).then(() => {
                 console.log('maxData', maxData);
 
                 v1.set(minData[0], minData[1], minData[2]);
