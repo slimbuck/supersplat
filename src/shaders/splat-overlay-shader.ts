@@ -29,7 +29,9 @@ const vertexShader = /* glsl */ `
         if ((splatState & 6u) != 0u) {
             // deleted or hidden (4 or 2)
             gl_Position = vec4(0.0, 0.0, 2.0, 1.0);
-            gl_PointSize = 0.0;
+
+            // doesn't work with webgpu
+            // gl_PointSize = 0.0;
         } else {
             mat4 model = matrix_model;
         
@@ -54,7 +56,9 @@ const vertexShader = /* glsl */ `
             vec3 center = uintBitsToFloat(texelFetch(splatPosition, splatUV, 0).xyz);
 
             gl_Position = matrix_viewProjection * model * vec4(center, 1.0);
-            gl_PointSize = splatSize;
+
+            // doesn't work with webgpu
+            // gl_PointSize = splatSize;
         }
     }
 `;

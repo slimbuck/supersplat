@@ -234,24 +234,24 @@ class Splat extends Element {
     }
 
     updatePositions() {
-        const data = this.scene.dataProcessor.calcPositions(this);
-
-        // update the splat centers which are used for render-time sorting
-        const state = this.splatData.getProp('state') as Uint8Array;
-        const { sorter } = this.entity.gsplat.instance;
-        const { centers } = sorter;
-        for (let i = 0; i < this.splatData.numSplats; ++i) {
-            if (state[i] === State.selected) {
-                centers[i * 3 + 0] = data[i * 4];
-                centers[i * 3 + 1] = data[i * 4 + 1];
-                centers[i * 3 + 2] = data[i * 4 + 2];
+        this.scene.dataProcessor.calcPositions(this, (data: Float32Array) => {
+            // update the splat centers which are used for render-time sorting
+            const state = this.splatData.getProp('state') as Uint8Array;
+            const { sorter } = this.entity.gsplat.instance;
+            const { centers } = sorter;
+            for (let i = 0; i < this.splatData.numSplats; ++i) {
+                if (state[i] === State.selected) {
+                    centers[i * 3 + 0] = data[i * 4];
+                    centers[i * 3 + 1] = data[i * 4 + 1];
+                    centers[i * 3 + 2] = data[i * 4 + 2];
+                }
             }
-        }
 
-        this.updateSorting();
+            this.updateSorting();
 
-        this.scene.forceRender = true;
-        this.scene.events.fire('splat.positionsChanged', this);
+            this.scene.forceRender = true;
+            this.scene.events.fire('splat.positionsChanged', this);
+        });
     }
 
     updateSorting() {

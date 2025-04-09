@@ -239,7 +239,7 @@ class DataProcessor {
         this.viewProjectionMat.mul2(camera.projectionMatrix, camera.viewMatrix);
 
         // allocate resources
-        const resources = this.getIntersectResources(transformA.width, numSplats);
+        const { texture, renderTarget, shader, data } = this.getIntersectResources(transformA.width, numSplats);
 
         resolve(scope, {
             transformA,
@@ -248,7 +248,7 @@ class DataProcessor {
             splat_params: [transformA.width, numSplats],
             matrix_model: splat.entity.getWorldTransform().data,
             matrix_viewProjection: this.viewProjectionMat.data,
-            output_params: [resources.texture.width, resources.texture.height]
+            output_params: [texture.width, texture.height]
         });
 
         const maskOptions = options as MaskOptions;
@@ -301,10 +301,9 @@ class DataProcessor {
         }
 
         device.setBlendState(BlendState.NOBLEND);
-        drawQuadWithShader(device, resources.renderTarget, resources.shader);
+        drawQuadWithShader(device, renderTarget, shader);
 
-        const { texture, data } = resources;
-        resources.texture.read(0, 0, texture.width, texture.height, {
+        texture.read(0, 0, texture.width, texture.height, {
             data,
             immediate: true
         }).then(() => {
@@ -329,7 +328,7 @@ class DataProcessor {
         this.splatParams[2] = numSplats;
 
         // get resources
-        const resources = this.getBoundResources(transformA.width);
+        const { renderTarget, shader, minTexture, maxTexture, minData, maxData } = this.getBoundResources(transformA.width);
 
         resolve(scope, {
             transformA,
@@ -341,22 +340,16 @@ class DataProcessor {
         });
 
         device.setBlendState(BlendState.NOBLEND);
-        drawQuadWithShader(device, resources.renderTarget, resources.shader);
+        drawQuadWithShader(device, renderTarget, shader);
 
-        const { minData, maxData } = resources;
-
-        resources.minTexture.read(0, 0, transformA.width, 1, {
+        minTexture.read(0, 0, transformA.width, 1, {
             data: minData,
             immediate: true
         }).then(() => {
-            console.log('minData', minData);
-
-            resources.maxTexture.read(0, 0, transformA.width, 1, {
+            maxTexture.read(0, 0, transformA.width, 1, {
                 data: maxData,
                 immediate: true
             }).then(() => {
-                console.log('maxData', maxData);
-
                 v1.set(minData[0], minData[1], minData[2]);
                 v2.set(maxData[0], maxData[1], maxData[2]);
 
@@ -370,6 +363,8 @@ class DataProcessor {
                     v2.z = Math.max(v2.z, maxData[i * 4 + 2]);
                 }
 
+                console.log('bound', v1, v2);
+
                 boundingBox.setMinMax(v1, v2);
 
                 doneCallback();
@@ -378,7 +373,7 @@ class DataProcessor {
     }
 
     // calculate world-space splat positions
-    calcPositions(splat: Splat) {
+    calcPositions(splat: Splat, doneCallback: (data: Float32Array) => void) {
         const { device } = this;
         const { scope } = device;
 
@@ -388,7 +383,7 @@ class DataProcessor {
         const transformPalette = splat.transformPalette.texture;
 
         // allocate resources
-        const resources = this.getPositionResources(transformA.width, transformA.height, numSplats);
+        const { renderTarget, shader, texture, data } = this.getPositionResources(transformA.width, transformA.height, numSplats);
 
         resolve(scope, {
             transformA,
@@ -398,19 +393,14 @@ class DataProcessor {
         });
 
         device.setBlendState(BlendState.NOBLEND);
-        drawQuadWithShader(device, resources.renderTarget, resources.shader);
+        drawQuadWithShader(device, renderTarget, shader);
 
-        const glDevice = device as WebglGraphicsDevice;
-        glDevice.gl.readPixels(
-            0, 0,
-            resources.texture.width,
-            resources.texture.height,
-            resources.texture.impl._glFormat,
-            resources.texture.impl._glPixelType,
-            resources.data
-        );
-
-        return resources.data;
+        texture.read(0, 0, transformA.width, transformA.height, {
+            data,
+            immediate: true
+        }).then(() => {
+            doneCallback(data);
+        });
     }
 }
 

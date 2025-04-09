@@ -104,17 +104,11 @@ const main = async () => {
     // url
     const url = new URL(window.location.href);
 
-    // decode remote storage details
-    let remoteStorageDetails;
-    try {
-        remoteStorageDetails = JSON.parse(decodeURIComponent(url.searchParams.get('remoteStorage')));
-    } catch (e) { }
-
     // edit history
     const editHistory = new EditHistory(events);
 
     // editor ui
-    const editorUI = new EditorUI(events, !!remoteStorageDetails);
+    const editorUI = new EditorUI(events);
 
     const absoluteUrl = (relative: string) => new URL(relative, document.baseURI).toString();
 
@@ -256,10 +250,12 @@ const main = async () => {
     registerDocEvents(scene, events);
     registerRenderEvents(scene, events);
     initShortcuts(events);
-    initFileHandler(scene, events, editorUI.appContainer.dom, remoteStorageDetails);
+    initFileHandler(scene, events, editorUI.appContainer.dom);
 
     // load async models
     scene.start();
+
+    events.fire('start');
 
     // handle load params
     const loadList = url.searchParams.getAll('load');

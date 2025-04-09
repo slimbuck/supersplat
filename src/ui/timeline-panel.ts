@@ -116,9 +116,6 @@ class Ticks extends Container {
             }
         });
 
-        // rebuild the timeline on dom resize
-        new ResizeObserver(() => rebuild()).observe(workArea.dom);
-
         // rebuild when timeline frames change
         events.on('timeline.frames', () => {
             rebuild();
@@ -134,6 +131,10 @@ class Ticks extends Container {
 
         events.on('timeline.keyRemoved', (index: number) => {
             removeKey(index);
+        });
+
+        events.on('start', () => {
+            new ResizeObserver(() => rebuild()).observe(workArea.dom);
         });
     }
 }

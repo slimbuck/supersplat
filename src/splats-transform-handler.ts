@@ -161,8 +161,8 @@ class SplatsTransformHandler implements TransformHandler {
         // for render during drag (which is slower).
         splat.updatePositions();
         splat.selectionAlpha = 1;
-        splat.scene.outline.enabled = true;
-        splat.scene.underlay.enabled = true;
+        // splat.scene.outline.enabled = true;
+        // splat.scene.underlay.enabled = true;
 
         // create op for splat transform
         const top = new SplatsTransformOp({
@@ -170,7 +170,6 @@ class SplatsTransformHandler implements TransformHandler {
             transform: transform.clone(),
             paletteMap: new Map(paletteMap)
         });
-
 
         // create op for pivot placement
         const pivot = this.events.invoke('pivot') as Pivot;

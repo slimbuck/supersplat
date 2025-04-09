@@ -205,8 +205,8 @@ class Scene {
         this.camera = new Camera();
         this.add(this.camera);
 
-        // this.splatOverlay = new SplatOverlay();
-        // this.add(this.splatOverlay);
+        this.splatOverlay = new SplatOverlay();
+        this.add(this.splatOverlay);
 
         this.grid = new Grid();
         this.add(this.grid);

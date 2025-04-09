@@ -12,11 +12,6 @@ import { localize } from './ui/localization';
 // ts compiler and vscode find this type, but eslint does not
 type FilePickerAcceptType = unknown;
 
-interface RemoteStorageDetails {
-    method: string;
-    url: string;
-}
-
 type ExportType = 'ply' | 'compressed-ply' | 'splat' | 'viewer';
 
 interface SceneWriteOptions {
@@ -126,7 +121,7 @@ const loadCameraPoses = async (url: string, filename: string, events: Events) =>
 };
 
 // initialize file handler events
-const initFileHandler = (scene: Scene, events: Events, dropTarget: HTMLElement, remoteStorageDetails: RemoteStorageDetails) => {
+const initFileHandler = (scene: Scene, events: Events, dropTarget: HTMLElement) => {
 
     // returns a promise that resolves when the file is loaded
     const handleImport = async (url: string, filename?: string, focusCamera = true, animationFrame = false) => {
