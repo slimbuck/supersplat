@@ -114,7 +114,7 @@ const main = async () => {
 
     // create the graphics device
     const graphicsDevice = await createGraphicsDevice(editorUI.canvas, {
-        deviceTypes: ['webgpu', 'webgl2'],
+        deviceTypes: [url.searchParams.has('wgpu') ? 'webgpu' : 'webgl2'],
         glslangUrl: absoluteUrl('static/lib/glslang/glslang.js'),
         twgslUrl: absoluteUrl('static/lib/twgsl/twgsl.js'),
         antialias: false,
