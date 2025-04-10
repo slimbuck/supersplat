@@ -131,9 +131,8 @@ class SplatsTransformHandler implements TransformHandler {
         });
 
         splat.selectionAlpha = 0;
-        // FIXME:
-        // splat.scene.outline.enabled = false;
-        // splat.scene.underlay.enabled = false;
+        splat.scene.outline.enabled = false;
+        splat.scene.underlay.enabled = false;
     }
 
     update(transform: Transform) {
@@ -162,9 +161,8 @@ class SplatsTransformHandler implements TransformHandler {
         // for render during drag (which is slower).
         splat.updatePositions();
         splat.selectionAlpha = 1;
-        // FIXME:
-        // splat.scene.outline.enabled = true;
-        // splat.scene.underlay.enabled = true;
+        splat.scene.outline.enabled = true;
+        splat.scene.underlay.enabled = true;
 
         // create op for splat transform
         const top = new SplatsTransformOp({

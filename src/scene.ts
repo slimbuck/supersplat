@@ -211,10 +211,21 @@ class Scene {
         this.grid = new Grid();
         this.add(this.grid);
 
-        // this.outline = new Outline();
-        // this.add(this.outline);
-        // this.underlay = new Underlay();
-        // this.add(this.underlay);
+        this.outline = new Outline();
+        this.add(this.outline);
+        this.underlay = new Underlay();
+        this.add(this.underlay);
+
+        // add selected splat to outline layer
+        this.events.on('selection.changed', (splat: Splat, prev: Splat) => {
+            const layerId = this.overlayLayer.id;
+            if (prev) {
+                prev.entity.gsplat.layers = prev.entity.gsplat.layers.filter(id => id !== layerId);
+            }
+            if (splat) {
+                splat.entity.gsplat.layers = splat.entity.gsplat.layers.concat([layerId]);
+            }
+        });
     }
 
     start() {

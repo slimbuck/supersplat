@@ -6,20 +6,38 @@ import {
     DepthState,
     Color,
     Entity,
-    Layer,
+    RenderPass,
     Shader,
     QuadRender,
-    WebglGraphicsDevice
+    GraphicsDevice,
+    Vec4
 } from 'playcanvas';
 
 import { Element, ElementType } from './element';
 import { vertexShader, fragmentShader } from './shaders/outline-shader';
-import { Splat } from './splat';
+
+class QuadRenderPass extends RenderPass {
+    quad: QuadRender;
+
+    constructor(device: GraphicsDevice, shader: Shader) {
+        super(device);
+
+        this.quad = new QuadRender(shader);
+    }
+
+    execute(rect?: Vec4, scissor?: Vec4) {
+        const { device } = this;
+        device.setCullMode(CULLFACE_NONE);
+        device.setDepthState(DepthState.NODEPTH);
+        device.setStencilState(null, null);
+        this.quad.render(rect, scissor);
+    }
+}
 
 class Outline extends Element {
     entity: Entity;
     shader: Shader;
-    quadRender: QuadRender;
+    renderPass: RenderPass;
     enabled = true;
     clr = new Color(1, 1, 1, 0.5);
 
@@ -36,16 +54,6 @@ class Outline extends Element {
         const device = this.scene.app.graphicsDevice;
         const layerId = this.scene.overlayLayer.id;
 
-        // add selected splat to outline layer
-        this.scene.events.on('selection.changed', (splat: Splat, prev: Splat) => {
-            if (prev) {
-                prev.entity.gsplat.layers = prev.entity.gsplat.layers.filter(id => id !== layerId);
-            }
-            if (splat) {
-                splat.entity.gsplat.layers = splat.entity.gsplat.layers.concat([layerId]);
-            }
-        });
-
         // render overlay layer only
         this.entity.camera.layers = [layerId];
         this.scene.camera.entity.addChild(this.entity);
@@ -54,8 +62,6 @@ class Outline extends Element {
             vertex_position: SEMANTIC_POSITION
         });
 
-        this.quadRender = new QuadRender(this.shader);
-
         const outlineTextureId = device.scope.resolve('outlineTexture');
         const alphaCutoffId = device.scope.resolve('alphaCutoff');
         const clrId = device.scope.resolve('clr');
@@ -63,15 +69,19 @@ class Outline extends Element {
         const events = this.scene.events;
 
         // apply the outline texture to the display before gizmos render
-        this.entity.camera.on('postRenderLayer', (layer: Layer, transparent: boolean) => {
-            if (!this.entity.enabled || layer !== this.scene.overlayLayer || !transparent) {
+        this.onPostRender = () => {
+            if (!this.entity.enabled) {
                 return;
             }
 
+            if (!this.renderPass) {
+                this.renderPass = new QuadRenderPass(this.scene.graphicsDevice, this.shader);
+                this.renderPass.init(this.scene.camera.entity.camera.renderTarget);
+                this.renderPass.colorOps.clear = false;
+                this.renderPass.depthStencilOps.clearDepth = false;
+            }
+
             device.setBlendState(BlendState.ALPHABLEND);
-            device.setCullMode(CULLFACE_NONE);
-            device.setDepthState(DepthState.NODEPTH);
-            device.setStencilState(null, null);
 
             const selectedClr = events.invoke('selectedClr');
             clrStorage[0] = selectedClr.r;
@@ -83,12 +93,8 @@ class Outline extends Element {
             alphaCutoffId.setValue(events.invoke('camera.mode') === 'rings' ? 0.0 : 0.4);
             clrId.setValue(clrStorage);
 
-            const glDevice = device as WebglGraphicsDevice;
-            glDevice.setRenderTarget(this.scene.camera.entity.camera.renderTarget);
-            glDevice.updateBegin();
-            this.quadRender.render();
-            glDevice.updateEnd();
-        });
+            this.renderPass.render();
+        };
     }
 
     remove() {

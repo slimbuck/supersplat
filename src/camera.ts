@@ -68,6 +68,7 @@ class Camera extends Element {
 
     picker: Picker;
 
+    renderTarget: RenderTarget
     workRenderTarget: RenderTarget;
 
     // overridden target size
@@ -287,6 +288,7 @@ class Camera extends Element {
         this.picker.releaseRenderTarget = () => { };
 
         this.scene.events.on('scene.boundChanged', this.onBoundChanged, this);
+        this.scene.events.on('postrender', this.finalBlit, this);
 
         // prepare camera-specific uniforms
         this.updateCameraUniforms = () => {
@@ -336,6 +338,7 @@ class Camera extends Element {
         // this.picker.destroy();
         this.picker = null;
 
+        this.scene.events.off('postrender', this.finalBlit, this);
         this.scene.events.off('scene.boundChanged', this.onBoundChanged, this);
     }
 
@@ -363,60 +366,52 @@ class Camera extends Element {
         const device = this.scene.graphicsDevice;
         const { width, height } = this.targetSize ?? this.scene.targetSize;
 
-        const rt = this.entity.camera.renderTarget;
-        if (rt && rt.width === width && rt.height === height) {
-            return;
-        }
+        if (!this.renderTarget) {
+            const createTexture = (name: string, width: number, height: number, format: number) => {
+                return new Texture(device, {
+                    name,
+                    width,
+                    height,
+                    format,
+                    mipmaps: false,
+                    minFilter: FILTER_NEAREST,
+                    magFilter: FILTER_NEAREST,
+                    addressU: ADDRESS_CLAMP_TO_EDGE,
+                    addressV: ADDRESS_CLAMP_TO_EDGE
+                });
+            };
 
-        // out with the old
-        if (rt) {
-            rt.destroyTextureBuffers();
-            rt.destroy();
+            const format = device.backBufferFormat;
+            const colorBuffer = createTexture('cameraColor', width, height, format);
+            const depthBuffer = createTexture('cameraDepth', width, height, PIXELFORMAT_DEPTH);
+            const workColorBuffer = createTexture('workColor', width, height, format);
 
-            this.workRenderTarget.destroy();
-            this.workRenderTarget = null;
-        }
-
-        const createTexture = (name: string, width: number, height: number, format: number) => {
-            return new Texture(device, {
-                name,
-                width,
-                height,
-                format,
-                mipmaps: false,
-                minFilter: FILTER_NEAREST,
-                magFilter: FILTER_NEAREST,
-                addressU: ADDRESS_CLAMP_TO_EDGE,
-                addressV: ADDRESS_CLAMP_TO_EDGE
+            this.renderTarget = new RenderTarget({
+                colorBuffer,
+                depthBuffer,
+                flipY: false,
+                autoResolve: false
             });
-        };
 
-        const format = device.backBufferFormat;
+            this.workRenderTarget = new RenderTarget({
+                colorBuffer: workColorBuffer,
+                depth: false,
+                autoResolve: false
+            });
 
-        // in with the new
-        const colorBuffer = createTexture('cameraColor', width, height, format);
-        const depthBuffer = createTexture('cameraDepth', width, height, PIXELFORMAT_DEPTH);
-        const renderTarget = new RenderTarget({
-            colorBuffer,
-            depthBuffer,
-            flipY: false,
-            autoResolve: false
-        });
-        this.entity.camera.renderTarget = renderTarget;
+            // set picker render target
+            this.entity.camera.renderTarget = this.renderTarget;
+            this.picker.renderTarget = this.workRenderTarget;
+        }
+
+        const { renderTarget, workRenderTarget } = this;
+
+        if (width !== renderTarget.width || height !== renderTarget.height) {
+            renderTarget.resize(width, height);
+            workRenderTarget.resize(width, height);
+        }
+
         this.entity.camera.horizontalFov = width > height;
-
-        const workColorBuffer = createTexture('workColor', width, height, format);
-
-        // create pick mode render target (reuse color buffer)
-        this.workRenderTarget = new RenderTarget({
-            colorBuffer: workColorBuffer,
-            depth: false,
-            autoResolve: false
-        });
-
-        // set picker render target
-        this.picker.renderTarget = this.workRenderTarget;
-
         this.scene.events.fire('camera.resize', { width, height });
     }
 
@@ -470,7 +465,7 @@ class Camera extends Element {
         this.updateCameraUniforms();
     }
 
-    onPostRender() {
+    finalBlit() {
         const device = this.scene.graphicsDevice as WebglGraphicsDevice;
         const renderTarget = this.entity.camera.renderTarget;
 

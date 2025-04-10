@@ -2,24 +2,45 @@ import {
     BLENDEQUATION_ADD,
     BLENDMODE_ONE,
     BLENDMODE_ZERO,
+    CULLFACE_NONE,
     SEMANTIC_POSITION,
     createShaderFromCode,
     BlendState,
     Color,
+    DepthState,
     Entity,
-    Layer,
+    GraphicsDevice,
+    RenderPass,
     Shader,
     QuadRender,
-    WebglGraphicsDevice
+    Vec4
 } from 'playcanvas';
 
 import { Element, ElementType } from './element';
 import { vertexShader, fragmentShader } from './shaders/blit-shader';
 
+class QuadRenderPass extends RenderPass {
+    quad: QuadRender;
+
+    constructor(device: GraphicsDevice, shader: Shader) {
+        super(device);
+
+        this.quad = new QuadRender(shader);
+    }
+
+    execute(rect?: Vec4, scissor?: Vec4) {
+        const { device } = this;
+        device.setCullMode(CULLFACE_NONE);
+        device.setDepthState(DepthState.NODEPTH);
+        device.setStencilState(null, null);
+        this.quad.render(rect, scissor);
+    }
+}
+
 class Underlay extends Element {
     entity: Entity;
     shader: Shader;
-    quadRender: QuadRender;
+    renderPass: RenderPass;
     enabled = true;
 
     constructor() {
@@ -33,37 +54,40 @@ class Underlay extends Element {
 
     add() {
         const device = this.scene.app.graphicsDevice;
+        const layerId = this.scene.overlayLayer.id;
 
-        this.entity.camera.layers = [this.scene.overlayLayer.id];
+        this.entity.camera.layers = [layerId];
         this.scene.camera.entity.addChild(this.entity);
 
         this.shader = createShaderFromCode(device, vertexShader, fragmentShader, 'apply-underlay', {
             vertex_position: SEMANTIC_POSITION
         });
 
-        this.quadRender = new QuadRender(this.shader);
-
-        const blitTextureId = device.scope.resolve('blitTexture');
         const blendState = new BlendState(true,
             BLENDEQUATION_ADD, BLENDMODE_ONE, BLENDMODE_ONE,
             BLENDEQUATION_ADD, BLENDMODE_ZERO, BLENDMODE_ONE
         );
 
-        this.entity.camera.on('postRenderLayer', (layer: Layer, transparent: boolean) => {
-            if (!this.entity.enabled || layer !== this.scene.overlayLayer || !transparent) {
+        const blitTextureId = device.scope.resolve('blitTexture');
+
+        this.onPostRender = () => {
+            if (!this.entity.enabled) {
                 return;
             }
-
+    
+            if (!this.renderPass) {
+                this.renderPass = new QuadRenderPass(this.scene.graphicsDevice, this.shader);
+                this.renderPass.init(this.scene.camera.entity.camera.renderTarget);
+                this.renderPass.colorOps.clear = false;
+                this.renderPass.depthStencilOps.clearDepth = false;
+            }
+    
             device.setBlendState(blendState);
-
+    
             blitTextureId.setValue(this.entity.camera.renderTarget.colorBuffer);
-
-            const glDevice = device as WebglGraphicsDevice;
-            glDevice.setRenderTarget(this.scene.camera.entity.camera.renderTarget);
-            glDevice.updateBegin();
-            this.quadRender.render();
-            glDevice.updateEnd();
-        });
+    
+            this.renderPass.render();
+        };
     }
 
     remove() {

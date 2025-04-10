@@ -58,7 +58,9 @@ const vertexShader = /* glsl */ `
             gl_Position = matrix_viewProjection * model * vec4(center, 1.0);
 
             // doesn't work with webgpu
-            // gl_PointSize = splatSize;
+            #ifndef WEBGPU
+                gl_PointSize = splatSize;
+            #endif
         }
     }
 `;
