@@ -52,7 +52,7 @@
         "jest": "^29.7.0",
         "jszip": "^3.10.1",
         "mp4-muxer": "^5.2.0",
-        "playcanvas": "^2.6.1",
+        "playcanvas": "file:../engine",
         "postcss": "^8.5.3",
         "rollup": "^4.37.0",
         "rollup-plugin-scss": "^4.0.1",
