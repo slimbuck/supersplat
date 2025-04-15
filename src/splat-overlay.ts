@@ -3,6 +3,7 @@ import {
     BUFFER_STATIC,
     PRIMITIVE_POINTS,
     SEMANTIC_POSITION,
+    GSplat,
     ShaderMaterial,
     Mesh,
     MeshInstance,
@@ -79,7 +80,7 @@ class SplatOverlay extends Element {
             };
 
             material.setParameter('splatState', splat.stateTexture);
-            material.setParameter('splatPosition', splat.entity.gsplat.instance.splat.transformATexture);
+            material.setParameter('splatPosition', (splat.entity.gsplat.instance.splat as GSplat).transformATexture);
             material.setParameter('splatTransform', splat.transformTexture);
             material.setParameter('transformPalette', splat.transformPalette.texture);
             material.setParameter('texParams', [splat.stateTexture.width, splat.stateTexture.height]);

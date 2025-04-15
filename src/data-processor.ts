@@ -5,16 +5,16 @@ import {
     SEMANTIC_POSITION,
     createShaderFromCode,
     drawQuadWithShader,
+    BlendState,
     BoundingBox,
     GraphicsDevice,
+    GSplat,
     Mat4,
     RenderTarget,
     ScopeSpace,
     Shader,
     Texture,
     Vec3,
-    WebglGraphicsDevice,
-    BlendState
 } from 'playcanvas';
 
 import { vertexShader as boundVS, fragmentShader as boundFS } from './shaders/bound-shader';
@@ -230,7 +230,7 @@ class DataProcessor {
         const { scope } = device;
 
         const numSplats = splat.splatData.numSplats;
-        const transformA = splat.entity.gsplat.instance.splat.transformATexture;
+        const transformA = (splat.entity.gsplat.instance.splat as GSplat).transformATexture;
         const splatTransform = splat.transformTexture;
         const transformPalette = splat.transformPalette.texture;
 
@@ -318,7 +318,7 @@ class DataProcessor {
         const { scope } = device;
 
         const numSplats = splat.splatData.numSplats;
-        const transformA = splat.entity.gsplat.instance.splat.transformATexture;
+        const transformA = (splat.entity.gsplat.instance.splat as GSplat).transformATexture;
         const splatTransform = splat.transformTexture;
         const transformPalette = splat.transformPalette.texture;
         const splatState = splat.stateTexture;
@@ -378,7 +378,7 @@ class DataProcessor {
         const { scope } = device;
 
         const numSplats = splat.splatData.numSplats;
-        const transformA = splat.entity.gsplat.instance.splat.transformATexture;
+        const transformA = (splat.entity.gsplat.instance.splat as GSplat).transformATexture;
         const splatTransform = splat.transformTexture;
         const transformPalette = splat.transformPalette.texture;
 
