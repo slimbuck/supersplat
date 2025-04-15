@@ -363,8 +363,6 @@ class DataProcessor {
                     v2.z = Math.max(v2.z, maxData[i * 4 + 2]);
                 }
 
-                console.log('bound', v1, v2);
-
                 boundingBox.setMinMax(v1, v2);
 
                 doneCallback();
