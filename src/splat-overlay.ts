@@ -18,6 +18,7 @@ import { Splat } from './splat';
 
 class SplatOverlay extends Element {
     meshInstance: MeshInstance;
+    splat: Splat;
 
     constructor() {
         super(ElementType.debug);
@@ -82,11 +83,11 @@ class SplatOverlay extends Element {
             material.setParameter('splatState', splat.stateTexture);
             material.setParameter('splatPosition', (splat.entity.gsplat.instance.splat as GSplat).transformATexture);
             material.setParameter('splatTransform', splat.transformTexture);
-            material.setParameter('transformPalette', splat.transformPalette.texture);
             material.setParameter('texParams', [splat.stateTexture.width, splat.stateTexture.height]);
             material.update();
 
             meshInstance.node = splat.entity;
+            this.splat = splat;
         };
 
         events.on('selection.changed', (selection: Splat) => {
@@ -112,9 +113,11 @@ class SplatOverlay extends Element {
             events.invoke('camera.mode') === 'centers') {
             const selectedClr = events.invoke('selectedClr');
             const unselectedClr = events.invoke('unselectedClr');
-            this.meshInstance.material.setParameter('splatSize', splatSize * window.devicePixelRatio);
-            this.meshInstance.material.setParameter('selectedClr', [selectedClr.r, selectedClr.g, selectedClr.b, selectedClr.a]);
-            this.meshInstance.material.setParameter('unselectedClr', [unselectedClr.r, unselectedClr.g, unselectedClr.b, unselectedClr.a]);
+            const { material } = this.meshInstance;
+            material.setParameter('splatSize', splatSize * window.devicePixelRatio);
+            material.setParameter('selectedClr', [selectedClr.r, selectedClr.g, selectedClr.b, selectedClr.a]);
+            material.setParameter('unselectedClr', [unselectedClr.r, unselectedClr.g, unselectedClr.b, unselectedClr.a]);
+            material.setParameter('transformPalette', this.splat.transformPalette.texture);
             this.scene.app.drawMeshInstance(this.meshInstance);
         }
     }
