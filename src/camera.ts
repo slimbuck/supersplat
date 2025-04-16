@@ -635,7 +635,7 @@ class Camera extends Element {
         } else {
             for (let y = 0; y < height; y++) {
                 for (let x = 0; x < width; x++) {
-                    const i = (y * width + x) * 4;
+                    const i = y * width + x;
                     const idx =
                         (pixels[i * 4] << 16) |
                         (pixels[i * 4 + 1] << 8) |
