@@ -606,7 +606,7 @@ class Camera extends Element {
     }
 
     async pickRect(x: number, y: number, width: number, height: number) {
-        const device = this.scene.graphicsDevice as WebglGraphicsDevice;
+        const device = this.scene.graphicsDevice;
         const pixels = new Uint8Array(width * height * 4);
 
         // read pixels

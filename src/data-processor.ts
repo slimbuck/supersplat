@@ -22,18 +22,6 @@ import { vertexShader as intersectionVS, fragmentShader as intersectionFS } from
 import { vertexShader as positionVS, fragmentShader as positionFS } from './shaders/position-shader';
 import { Splat } from './splat';
 
-type MaskOptions = {
-    mask: Texture;
-};
-
-type RectOptions = {
-    rect: { x1: number, y1: number, x2: number, y2: number };
-};
-
-type SphereOptions = {
-    sphere: { x: number, y: number, z: number, radius: number };
-};
-
 const v1 = new Vec3();
 const v2 = new Vec3();
 
@@ -68,12 +56,42 @@ type PositionResources = {
     data: Float32Array;
 };
 
+// options
+
+type IntersectMaskOptions = {
+    mask: Texture;
+};
+
+type IntersectRectOptions = {
+    rect: { x1: number, y1: number, x2: number, y2: number };
+};
+
+type IntersectSphereOptions = {
+    sphere: { x: number, y: number, z: number, radius: number };
+};
+
+type IntersectOptions = IntersectMaskOptions | IntersectRectOptions | IntersectSphereOptions;
+
+type CalcBoundOptions = {
+    boundingBox: BoundingBox;
+    onlySelected: boolean;
+};
+
+type Job = {
+    type: 'intersect' | 'calcBound' | 'calcPositions';
+    splat: Splat;
+    options?: IntersectOptions | CalcBoundOptions;
+    doneCallback: (arg?: any) => void;
+};
+
 // gpu processor for splat data
 class DataProcessor {
     device: GraphicsDevice;
     dummyTexture: Texture;
     viewProjectionMat = new Mat4();
     splatParams = new Int32Array(3);
+
+    jobList: Job[] = [];
 
     getIntersectResources: (width: number, numSplats: number) => IntersectResources;
     getBoundResources: (splatTextureWidth: number) => BoundResources;
@@ -225,7 +243,7 @@ class DataProcessor {
     }
 
     // calculate the intersection of a mask canvas with splat centers
-    intersect(options: MaskOptions | RectOptions | SphereOptions, splat: Splat, doneCallback: (data: Uint8Array) => void) {
+    _intersect(options: IntersectOptions, splat: Splat, doneCallback: (data: Uint8Array) => void) {
         const { device } = this;
         const { scope } = device;
 
@@ -251,7 +269,7 @@ class DataProcessor {
             output_params: [texture.width, texture.height]
         });
 
-        const maskOptions = options as MaskOptions;
+        const maskOptions = options as IntersectMaskOptions;
 
         if (maskOptions.mask) {
             resolve(scope, {
@@ -266,7 +284,7 @@ class DataProcessor {
             });
         }
 
-        const rectOptions = options as RectOptions;
+        const rectOptions = options as IntersectRectOptions;
         if (rectOptions.rect) {
             resolve(scope, {
                 mode: 1,
@@ -283,7 +301,7 @@ class DataProcessor {
             });
         }
 
-        const sphereOptions = options as SphereOptions;
+        const sphereOptions = options as IntersectSphereOptions;
         if (sphereOptions.sphere) {
             resolve(scope, {
                 mode: 2,
@@ -313,7 +331,7 @@ class DataProcessor {
 
     // use gpu to calculate either bound of the currently selected splats or the bound of
     // all visible splats
-    calcBound(splat: Splat, boundingBox: BoundingBox, onlySelected: boolean, doneCallback: () => void) {
+    _calcBound(splat: Splat, boundingBox: BoundingBox, onlySelected: boolean, doneCallback: () => void) {
         const device = splat.scene.graphicsDevice;
         const { scope } = device;
 
@@ -371,7 +389,7 @@ class DataProcessor {
     }
 
     // calculate world-space splat positions
-    calcPositions(splat: Splat, doneCallback: (data: Float32Array) => void) {
+    _calcPositions(splat: Splat, doneCallback: (data: Float32Array) => void) {
         const { device } = this;
         const { scope } = device;
 
@@ -398,6 +416,72 @@ class DataProcessor {
             immediate: true
         }).then(() => {
             doneCallback(data);
+        });
+    }
+
+    invokeNextJob() {
+        const { jobList } = this;
+        const job = jobList[0];
+
+        const doneCallback = (arg?: any) => {
+            jobList.shift();
+            job?.doneCallback(arg);
+            if (jobList.length > 0) {
+                this.invokeNextJob();
+            }
+        };
+
+        switch (job.type) {
+            case 'intersect': {
+                const options = job.options as IntersectOptions;
+                this._intersect(options, job.splat, doneCallback);
+                break;
+            }
+            case 'calcBound': {
+                const options = job.options as CalcBoundOptions;
+                this._calcBound(job.splat, options.boundingBox, options.onlySelected, doneCallback);
+                break;
+            }
+            case 'calcPositions': {
+                this._calcPositions(job.splat, doneCallback);
+                break;
+            }
+        }
+    }
+
+    pushJob(job: Job) {
+        // push the job
+        this.jobList.push(job);
+
+        // if this is the first, then start processing
+        if (this.jobList.length === 1) {
+            this.invokeNextJob();
+        }
+    }
+
+    intersect(splat: Splat, options: IntersectOptions, doneCallback: (data: Uint8Array) => void) {
+        this.pushJob({
+            type: 'intersect',
+            splat,
+            options,
+            doneCallback
+        });
+    }
+
+    calcBound(splat: Splat, options: CalcBoundOptions, doneCallback: () => void) {
+        this.pushJob({
+            type: 'calcBound',
+            splat,
+            options,
+            doneCallback
+        });
+    }
+
+    calcPositions(splat: Splat, doneCallback: (data: Float32Array) => void) {
+        this.pushJob({
+            type: 'calcPositions',
+            splat,
+            doneCallback
         });
     }
 }

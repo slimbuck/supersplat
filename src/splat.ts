@@ -431,16 +431,21 @@ class Splat extends Element {
     }
 
     makeSelectionBoundDirty() {
-        const selectionBound = this.selectionBoundStorage;
-        this.scene.dataProcessor.calcBound(this, selectionBound, true, () => {
+        this.scene.dataProcessor.calcBound(this, {
+            boundingBox: this.selectionBoundStorage,
+            onlySelected: true
+        }, () => {
             this.makeLocalBoundDirty();
         });
     }
 
     makeLocalBoundDirty() {
-        const localBound = this.localBoundStorage;
-        this.scene.dataProcessor.calcBound(this, localBound, false, () => {
-            this.entity.getWorldTransform().transformPoint(localBound.center, vec);
+        const { localBoundStorage } = this;
+        this.scene.dataProcessor.calcBound(this, {
+            boundingBox: localBoundStorage,
+            onlySelected: false
+        }, () => {
+            this.entity.getWorldTransform().transformPoint(localBoundStorage.center, vec);
             this.makeWorldBoundDirty();
         });
     }

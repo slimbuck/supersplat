@@ -223,7 +223,7 @@ const registerEditorEvents = (events: Events, editHistory: EditHistory, scene: S
     });
 
     const intersectCenters = (splat: Splat, op: 'add'|'remove'|'set', options: any) => {
-        scene.dataProcessor.intersect(options, splat, (data: Uint8Array) => {
+        scene.dataProcessor.intersect(splat, options, (data: Uint8Array) => {
             const filter = (i: number) => data[i] === 255;
             events.fire('edit.add', new SelectOp(splat, op, filter));
         });
