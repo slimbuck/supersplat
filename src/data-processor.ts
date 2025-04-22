@@ -318,6 +318,30 @@ class DataProcessor {
             });
         }
 
+        const boxOptions = options as BoxOptions;
+        if (boxOptions.box) {
+            resolve(scope, {
+                mode: 3,
+                box_params: [
+                    boxOptions.box.x,
+                    boxOptions.box.y,
+                    boxOptions.box.z,
+                    0
+                ],
+                aabb_params: [
+                    boxOptions.box.lenx * 0.5,
+                    boxOptions.box.leny * 0.5,
+                    boxOptions.box.lenz * 0.5,
+                    0
+                ]
+            });
+        } else {
+            resolve(scope, {
+                box_params: [0, 0, 0, 0],
+                aabb_params: [0, 0, 0, 0]
+            });
+        }
+
         device.setBlendState(BlendState.NOBLEND);
         drawQuadWithShader(device, renderTarget, shader);
 
