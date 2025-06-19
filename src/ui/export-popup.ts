@@ -365,7 +365,7 @@ class ExportPopup extends Container {
                     updateExtension('.splat');
                     break;
                 case 'viewer':
-                    updateExtension(viewerTypeSelect.value === 'html' ? '.html' : '.zip');
+                    updateExtension(viewerTypeSelect.value === 'html' ? '-viewer.html' : '-viewer.zip');
                     break;
             }
 

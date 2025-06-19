@@ -47,7 +47,7 @@
         "i18next-browser-languagedetector": "^8.2.0",
         "jszip": "^3.10.1",
         "mp4-muxer": "^5.2.1",
-        "playcanvas": "^2.8.0",
+        "playcanvas": "^2.8.2",
         "postcss": "^8.5.6",
         "rollup": "^4.43.0",
         "rollup-plugin-scss": "^4.0.1",
