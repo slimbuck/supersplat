@@ -1,4 +1,4 @@
-import { Container, Element, Label } from 'pcui';
+import { Container, Element, Label } from '@playcanvas/pcui';
 
 import { Events } from '../events';
 import { localize } from './localization';
@@ -114,11 +114,6 @@ class Menu extends Container {
             isEnabled: () => !events.invoke('scene.empty'),
             onSelect: () => events.invoke('scene.export', 'ply')
         }, {
-            text: localize('file.export.compressed-ply'),
-            icon: createSvg(sceneExport),
-            isEnabled: () => !events.invoke('scene.empty'),
-            onSelect: () => events.invoke('scene.export', 'compressed-ply')
-        }, {
             text: localize('file.export.splat'),
             icon: createSvg(sceneExport),
             isEnabled: () => !events.invoke('scene.empty'),
@@ -228,7 +223,7 @@ class Menu extends Container {
         const renderMenuPanel = new MenuPanel([{
             text: localize('render.image'),
             icon: createSvg(sceneExport),
-            onSelect: () => events.invoke('render.image')
+            onSelect: async () => await events.invoke('show.imageSettingsDialog')
         }, {
             text: localize('render.video'),
             icon: createSvg(sceneExport),
@@ -242,7 +237,7 @@ class Menu extends Container {
         }, {
             text: localize('help.user-guide'),
             icon: 'E232',
-            onSelect: () => window.open('https://github.com/playcanvas/supersplat/wiki', '_blank').focus()
+            onSelect: () => window.open('https://developer.playcanvas.com/user-manual/gaussian-splatting/editing/supersplat/', '_blank').focus()
         }, {
             text: localize('help.log-issue'),
             icon: 'E336',

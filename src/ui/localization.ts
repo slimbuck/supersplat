@@ -23,9 +23,15 @@ const localizeInit = () => {
                     'file.save-as': 'Speichern als...',
                     'file.publish': 'Veröffentlichen...',
                     'file.export': 'Exportieren',
-                    'file.export.compressed-ply': 'Komprimiertes PLY',
                     'file.export.splat': 'Splat',
                     'file.export.viewer': 'Viewer App...',
+
+                    // Render menu
+                    'render': 'Rendern',
+                    'render.image': 'Bild...',
+                    'render.video': 'Video...',
+                    'render.ok': 'Rendern',
+                    'render.cancel': 'Abbrechen',
 
                     // Selection menu
                     'select': 'Auswahl',
@@ -182,6 +188,7 @@ const localizeInit = () => {
                     'tooltip.bound-center': 'Mittelpunkt verwenden',
 
                     // Viewer Export
+                    'export.header': 'EXPORTIEREN',
                     'export.type': 'Export Typ',
                     'export.html': 'HTML',
                     'export.package': 'ZIP Paket',
@@ -193,6 +200,12 @@ const localizeInit = () => {
                     'export.fov': 'Sichtfeld (FoV)',
                     'export.background-color': 'Hintergrund',
                     'export.filename': 'Dateiname',
+                    'export.animation': 'Animation',
+                    'export.animation-none': 'Keine',
+                    'export.animation-track': 'Track',
+                    'export.ply-compress': 'PLY komprimieren',
+                    'export.splats-select': 'Splats',
+                    'export.splats-select.all': 'Alle Splats',
 
                     // Cursor
                     'cursor.click-to-copy': 'Klicken zum kopieren',
@@ -250,12 +263,12 @@ const localizeInit = () => {
                     'file.publish': 'Publish...',
                     'file.export': 'Export',
                     'file.export.ply': 'PLY (.ply)',
-                    'file.export.compressed-ply': 'Compressed PLY (.ply)',
                     'file.export.splat': 'Splat file (.splat)',
                     'file.export.viewer': 'Viewer App...',
 
+                    // Render menu
                     'render': 'Render',
-                    'render.image': 'Image',
+                    'render.image': 'Image...',
                     'render.video': 'Video...',
                     'render.ok': 'Render',
                     'render.cancel': 'Cancel',
@@ -423,7 +436,7 @@ const localizeInit = () => {
                     'tooltip.bound-center': 'Use Bound Center',
 
                     // Viewer Export
-                    'export.header': 'VIEWER EXPORT',
+                    'export.header': 'EXPORT',
                     'export.type': 'Export Type',
                     'export.html': 'HTML',
                     'export.package': 'ZIP Package',
@@ -438,6 +451,9 @@ const localizeInit = () => {
                     'export.animation': 'Animation',
                     'export.animation-none': 'None',
                     'export.animation-track': 'Track',
+                    'export.ply-compress': 'Compress PLY',
+                    'export.splats-select': 'Splats',
+                    'export.splats-select.all': 'All Splats',
 
                     // Cursor
                     'cursor.click-to-copy': 'Click to copy',
@@ -462,6 +478,15 @@ const localizeInit = () => {
                     'publish.succeeded': 'PUBLISH SUCCEEDED',
                     'publish.message': 'Use the link below to access your scene.',
                     'publish.please-log-in': 'Publishing to PlayCanvas requires a user account. Please log in and try again.',
+
+                    // Image Settings Dialog
+                    'image.header': 'IMAGE SETTINGS',
+                    'image.preset': 'Preset',
+                    'image.resolution': 'Resolution',
+                    'image.transparentBg': 'Transparent Background',
+                    'image.showDebug': 'Show Debug Overlays',
+                    'image.resolutionCurrent': 'Current',
+                    'image.resolutionCustom': 'Custom',
 
                     // Video Settings Dialog
                     'video.header': 'VIDEO SETTINGS',
@@ -494,9 +519,15 @@ const localizeInit = () => {
                     'file.save-as': 'Enregistrer sous...',
                     'file.publish': 'Publier...',
                     'file.export': 'Exporter',
-                    'file.export.compressed-ply': 'Ply compressé',
                     'file.export.splat': 'Fichier splat',
                     'file.export.viewer': 'Application de visualisation...',
+
+                    // Render menu
+                    'render': 'Rendu',
+                    'render.image': 'Image...',
+                    'render.video': 'Vidéo...',
+                    'render.ok': 'Rendu',
+                    'render.cancel': 'Annuler',
 
                     // Selection menu
                     'select': 'Sélection',
@@ -653,6 +684,7 @@ const localizeInit = () => {
                     'tooltip.bound-center': 'Utiliser le centre de la limite',
 
                     // Viewer Export
+                    'export.header': 'EXPORTER',
                     'export.type': 'Type d\'export',
                     'export.html': 'HTML',
                     'export.package': 'Package ZIP',
@@ -664,6 +696,12 @@ const localizeInit = () => {
                     'export.fov': 'Champ de vision',
                     'export.background-color': 'Arrière-plan',
                     'export.filename': 'Nom de fichier',
+                    'export.animation': 'Animation',
+                    'export.animation-none': 'Aucune',
+                    'export.animation-track': 'Piste',
+                    'export.ply-compress': 'Compresser PLY',
+                    'export.splats-select': 'Splats',
+                    'export.splats-select.all': 'Tous les Splats',
 
                     // Cursor
                     'cursor.click-to-copy': 'Cliquez pour copier',
@@ -720,9 +758,15 @@ const localizeInit = () => {
                     'file.save-as': '名前を付けて保存',
                     'file.publish': '公開...',
                     'file.export': 'エクスポート',
-                    'file.export.compressed-ply': 'Compressed PLY (.ply)',
                     'file.export.splat': 'Splat (.splat)',
                     'file.export.viewer': 'Viewer App...',
+
+                    // Render menu
+                    'render': 'レンダリング',
+                    'render.image': '画像...',
+                    'render.video': '動画...',
+                    'render.ok': 'レンダリング',
+                    'render.cancel': 'キャンセル',
 
                     // Selection menu
                     'select': '選択',
@@ -879,6 +923,7 @@ const localizeInit = () => {
                     'tooltip.bound-center': 'バウンディングボックスの中心を使用',
 
                     // Viewer Export
+                    'export.header': 'エクスポート',
                     'export.type': 'エクスポートタイプ',
                     'export.html': 'HTML',
                     'export.package': 'ZIPパッケージ',
@@ -890,6 +935,12 @@ const localizeInit = () => {
                     'export.fov': '視野角',
                     'export.background-color': '背景色',
                     'export.filename': 'ファイル名',
+                    'export.animation': 'アニメーション',
+                    'export.animation-none': 'なし',
+                    'export.animation-track': 'トラック',
+                    'export.ply-compress': 'PLYを圧縮',
+                    'export.splats-select': 'Splat',
+                    'export.splats-select.all': 'すべてのSplat',
 
                     // Cursor
                     'cursor.click-to-copy': 'クリックしてコピー',
@@ -946,9 +997,15 @@ const localizeInit = () => {
                     'file.save-as': '다른 이름으로 저장...',
                     'file.publish': '게시...',
                     'file.export': '내보내기',
-                    'file.export.compressed-ply': '압축된 PLY',
                     'file.export.splat': 'Splat 파일',
                     'file.export.viewer': '뷰어 앱...',
+
+                    // Render menu
+                    'render': '렌더링',
+                    'render.image': '이미지...',
+                    'render.video': '비디오...',
+                    'render.ok': '렌더링',
+                    'render.cancel': '취소',
 
                     // Selection menu
                     'select': '선택',
@@ -1104,6 +1161,7 @@ const localizeInit = () => {
                     'tooltip.bound-center': '바운드 중심 사용',
 
                     // Viewer Export
+                    'export.header': '내보내기',
                     'export.type': '내보내기 유형',
                     'export.html': 'HTML',
                     'export.package': 'ZIP 패키지',
@@ -1115,6 +1173,12 @@ const localizeInit = () => {
                     'export.fov': '시야각',
                     'export.background-color': '배경색',
                     'export.filename': '파일 이름',
+                    'export.animation': '애니메이션',
+                    'export.animation-none': '없음',
+                    'export.animation-track': '트랙',
+                    'export.ply-compress': 'PLY 압축',
+                    'export.splats-select': 'Splat',
+                    'export.splats-select.all': '모든 Splat',
 
                     // Cursor
                     'cursor.click-to-copy': '클릭하여 복사',
@@ -1171,9 +1235,15 @@ const localizeInit = () => {
                     'file.save-as': '另存为...',
                     'file.publish': '发布...',
                     'file.export': '导出',
-                    'file.export.compressed-ply': '压缩 PLY',
                     'file.export.splat': 'Splat 文件',
                     'file.export.viewer': '查看器应用...',
+
+                    // Render menu
+                    'render': '渲染',
+                    'render.image': '图像...',
+                    'render.video': '视频...',
+                    'render.ok': '渲染',
+                    'render.cancel': '取消',
 
                     // Selection menu
                     'select': '选择',
@@ -1330,6 +1400,7 @@ const localizeInit = () => {
                     'tooltip.bound-center': '使用边界中心',
 
                     // Viewer Export
+                    'export.header': '导出',
                     'export.type': '导出类型',
                     'export.html': 'HTML',
                     'export.package': 'ZIP 包',
@@ -1341,6 +1412,12 @@ const localizeInit = () => {
                     'export.fov': '视野角',
                     'export.background-color': '背景颜色',
                     'export.filename': '文件名',
+                    'export.animation': '动画',
+                    'export.animation-none': '无',
+                    'export.animation-track': '轨道',
+                    'export.ply-compress': '压缩PLY',
+                    'export.splats-select': 'Splat',
+                    'export.splats-select.all': '所有Splat',
 
                     // Cursor
                     'cursor.click-to-copy': '点击复制',

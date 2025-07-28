@@ -8,7 +8,7 @@ import {
     BlendState,
     BoundingBox,
     GraphicsDevice,
-    GSplat,
+    GSplatResource,
     Mat4,
     RenderTarget,
     ScopeSpace,
@@ -70,7 +70,11 @@ type IntersectSphereOptions = {
     sphere: { x: number, y: number, z: number, radius: number };
 };
 
-type IntersectOptions = IntersectMaskOptions | IntersectRectOptions | IntersectSphereOptions;
+type IntersectBoxOptions = {
+    box: { x: number, y: number, z: number, lenx: number, leny: number, lenz: number };
+}
+
+type IntersectOptions = IntersectMaskOptions | IntersectRectOptions | IntersectSphereOptions | IntersectBoxOptions;
 
 type CalcBoundOptions = {
     boundingBox: BoundingBox;
@@ -248,7 +252,7 @@ class DataProcessor {
         const { scope } = device;
 
         const numSplats = splat.splatData.numSplats;
-        const transformA = (splat.entity.gsplat.instance.splat as GSplat).transformATexture;
+        const transformA = (splat.entity.gsplat.instance.resource as GSplatResource).transformATexture;
         const splatTransform = splat.transformTexture;
         const transformPalette = splat.transformPalette.texture;
 
@@ -318,7 +322,7 @@ class DataProcessor {
             });
         }
 
-        const boxOptions = options as BoxOptions;
+        const boxOptions = options as IntersectBoxOptions;
         if (boxOptions.box) {
             resolve(scope, {
                 mode: 3,
@@ -360,7 +364,7 @@ class DataProcessor {
         const { scope } = device;
 
         const numSplats = splat.splatData.numSplats;
-        const transformA = (splat.entity.gsplat.instance.splat as GSplat).transformATexture;
+        const transformA = (splat.entity.gsplat.instance.resource as GSplatResource).transformATexture;
         const splatTransform = splat.transformTexture;
         const transformPalette = splat.transformPalette.texture;
         const splatState = splat.stateTexture;
@@ -418,7 +422,7 @@ class DataProcessor {
         const { scope } = device;
 
         const numSplats = splat.splatData.numSplats;
-        const transformA = (splat.entity.gsplat.instance.splat as GSplat).transformATexture;
+        const transformA = (splat.entity.gsplat.instance.resource as GSplatResource).transformATexture;
         const splatTransform = splat.transformTexture;
         const transformPalette = splat.transformPalette.texture;
 

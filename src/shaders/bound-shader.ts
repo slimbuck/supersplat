@@ -16,8 +16,8 @@ const fragmentShader = /* glsl */ `
     // calculate min and max for a single column of splats
     void main(void) {
 
-        vec3 boundMin = vec3(100000.0);
-        vec3 boundMax = vec3(-100000.0);
+        vec3 boundMin = vec3(1e6);
+        vec3 boundMax = vec3(-1e6);
 
         for (int id = 0; id < splat_params.y; id++) {
             // calculate splatUV

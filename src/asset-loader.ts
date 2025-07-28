@@ -4,11 +4,11 @@ import { Events } from './events';
 import { Splat } from './splat';
 
 interface ModelLoadRequest {
-    url?: string;
-    contents?: ArrayBuffer;
     filename?: string;
-    maxAnisotropy?: number;
-    animationFrame?: boolean;       // animations disable morton re-ordering at load time for faster loading
+    url?: string;
+    contents?: File;
+    animationFrame?: boolean;                   // animations disable morton re-ordering at load time for faster loading
+    mapUrl?: (name: string) => string;          // function to map texture names to URLs
 }
 
 // ideally this function would stream data directly into GSplatData buffers.
@@ -102,35 +102,49 @@ class AssetLoader {
             this.events.fire('startSpinner');
         }
 
+        const contents = loadRequest.contents && (loadRequest.contents instanceof Response ? loadRequest.contents : new Response(loadRequest.contents));
+
+        const file = {
+            url: loadRequest.url ?? loadRequest.filename,
+            filename: loadRequest.filename,
+            contents
+        };
+
+        const data = {
+            // decompress data on load
+            decompress: true,
+            // disable morton re-ordering when loading animation frames
+            reorder: !(loadRequest.animationFrame ?? false),
+            mapUrl: loadRequest.mapUrl
+        };
+
+        const options = {
+            mapUrl: loadRequest.mapUrl
+        };
+
         return new Promise<Splat>((resolve, reject) => {
             const asset = new Asset(
                 loadRequest.filename || loadRequest.url,
                 'gsplat',
-                {
-                    url: loadRequest.url,
-                    filename: loadRequest.filename,
-                    contents: loadRequest.contents
-                },
-                {
-                    // decompress data on load
-                    decompress: true,
-                    // disable morton re-ordering when loading animation frames
-                    reorder: !(loadRequest.animationFrame ?? false)
-                }
+                // @ts-ignore
+                file,
+                data,
+                options
             );
 
-            asset.on('load', () => {
+            asset.on('load:data', (data: GSplatData) => {
                 // support loading 2d splats by adding scale_2 property with almost 0 scale
-                const splatData = (asset.resource as GSplatResource).splatData as GSplatData;
-                if (splatData.getProp('scale_0') && splatData.getProp('scale_1') && !splatData.getProp('scale_2')) {
-                    const scale2 = new Float32Array(splatData.numSplats).fill(Math.log(1e-6));
-                    splatData.addProp('scale_2', scale2);
+                if (data instanceof GSplatData && data.getProp('scale_0') && data.getProp('scale_1') && !data.getProp('scale_2')) {
+                    const scale2 = new Float32Array(data.numSplats).fill(Math.log(1e-6));
+                    data.addProp('scale_2', scale2);
 
                     // place the new scale_2 property just after scale_1
-                    const props = splatData.getElement('vertex').properties;
+                    const props = data.getElement('vertex').properties;
                     props.splice(props.findIndex((prop: any) => prop.name === 'scale_1') + 1, 0, props.splice(props.length - 1, 1)[0]);
                 }
+            });
 
+            asset.on('load', () => {
                 // check the PLY contains minimal set of we expect
                 const required = [
                     'x', 'y', 'z',
@@ -138,6 +152,7 @@ class AssetLoader {
                     'rot_0', 'rot_1', 'rot_2', 'rot_3',
                     'f_dc_0', 'f_dc_1', 'f_dc_2', 'opacity'
                 ];
+                const splatData = (asset.resource as GSplatResource).gsplatData as GSplatData;
                 const missing = required.filter(x => !splatData.getProp(x));
                 if (missing.length > 0) {
                     reject(new Error(`This file does not contain gaussian splatting data. The following properties are missing: ${missing.join(', ')}`));
@@ -159,34 +174,32 @@ class AssetLoader {
         });
     }
 
-    loadSplat(loadRequest: ModelLoadRequest) {
+    async loadSplat(loadRequest: ModelLoadRequest) {
         this.events.fire('startSpinner');
 
-        return new Promise<Splat>((resolve, reject) => {
-            fetch(loadRequest.url || loadRequest.filename)
-            .then((response) => {
-                if (!response || !response.ok || !response.body) {
-                    reject(new Error('Failed to fetch splat data'));
-                } else {
-                    return response.arrayBuffer();
-                }
-            })
-            .then(arrayBuffer => deserializeFromSSplat(arrayBuffer))
-            .then((gsplatData) => {
-                const asset = new Asset(loadRequest.filename || loadRequest.url, 'gsplat', {
-                    url: loadRequest.url,
-                    filename: loadRequest.filename
-                });
-                asset.resource = new GSplatResource(this.app, gsplatData, []);
-                resolve(new Splat(asset));
-            })
-            .catch((err) => {
-                console.error(err);
-                reject(new Error('Failed to load splat data'));
+        try {
+            const contents = loadRequest.contents && (loadRequest.contents instanceof Response ? loadRequest.contents : new Response(loadRequest.contents));
+            const response = await (contents ?? fetch(loadRequest.url || loadRequest.filename)) as Response;
+
+            if (!response || !response.ok || !response.body) {
+                throw new Error('Failed to fetch splat data');
+            }
+
+            const arrayBuffer = await response.arrayBuffer();
+
+            const gsplatData = deserializeFromSSplat(arrayBuffer);
+
+            const asset = new Asset(loadRequest.filename || loadRequest.url, 'gsplat', {
+                url: loadRequest.url,
+                filename: loadRequest.filename
             });
-        }).finally(() => {
+            this.app.assets.add(asset);
+            asset.resource = new GSplatResource(this.app.graphicsDevice, gsplatData);
+
+            return new Splat(asset);
+        } finally {
             this.events.fire('stopSpinner');
-        });
+        }
     }
 
     loadModel(loadRequest: ModelLoadRequest) {

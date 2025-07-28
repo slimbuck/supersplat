@@ -262,17 +262,21 @@ const main = async () => {
     // handle load params
     const loadList = url.searchParams.getAll('load');
     for (const value of loadList) {
-        await events.invoke('import', decodeURIComponent(value));
+        const decoded = decodeURIComponent(value);
+        await events.invoke('import', [{
+            filename: decoded.split('/').pop(),
+            url: decoded
+        }]);
     }
 
     // handle OS-based file association in PWA mode
     if ('launchQueue' in window) {
         window.launchQueue.setConsumer(async (launchParams: LaunchParams) => {
             for (const file of launchParams.files) {
-                const blob = await file.getFile();
-                const url = URL.createObjectURL(blob);
-                await events.invoke('import', url, file.name);
-                URL.revokeObjectURL(url);
+                await events.invoke('import', [{
+                    filename: file.name,
+                    contents: file
+                }]);
             }
         });
     }

@@ -63,8 +63,6 @@ type ExperienceSettings = {
 
 type ViewerExportSettings = {
     type: 'html' | 'zip';
-    filename?: string;
-    serializeSettings: SerializeSettings;
     experienceSettings: ExperienceSettings;
 };
 
@@ -100,7 +98,7 @@ class GaussianFilter {
             }
 
             // optionally filter out unselected gaussians
-            if (onlySelected && ((state[i] & State.selected) === 0)) {
+            if (onlySelected && (state[i] !== State.selected)) {
                 return false;
             }
 
@@ -792,9 +790,9 @@ const sortSplats = (splats: Splat[], indices: CompressedIndex[]) => {
                 const y = centers[i * 3 + 1];
                 const z = centers[i * 3 + 2];
 
-                const ix = Math.floor(1024 * (x - minx) / xlen);
-                const iy = Math.floor(1024 * (y - miny) / ylen);
-                const iz = Math.floor(1024 * (z - minz) / zlen);
+                const ix = Math.min(1023, Math.floor(1024 * (x - minx) / xlen));
+                const iy = Math.min(1023, Math.floor(1024 * (y - miny) / ylen));
+                const iz = Math.min(1023, Math.floor(1024 * (z - minz) / zlen));
 
                 morton[idx++] = encodeMorton3(ix, iy, iz);
             }
@@ -918,6 +916,13 @@ const serializePlyCompressed = async (splats: Splat[], options: SerializeSetting
             }
         }
 
+        // pad the end of the last chunk with duplicate data
+        if (num < 256) {
+            for (let j = num; j < 256; ++j) {
+                chunk.set(j, singleSplat);
+            }
+        }
+
         const result = chunk.pack();
 
         const off = chunkOffset + i * 18 * 4;
@@ -1023,12 +1028,12 @@ const encodeBase64 = (bytes: Uint8Array) => {
     return window.btoa(binary);
 };
 
-const serializeViewer = async (splats: Splat[], options: ViewerExportSettings, writer: Writer) => {
+const serializeViewer = async (splats: Splat[], serializeSettings: SerializeSettings, options: ViewerExportSettings, writer: Writer) => {
     const { experienceSettings } = options;
 
     // create compressed PLY data
     const plyWriter = new BufferWriter();
-    await serializePlyCompressed(splats, options.serializeSettings, plyWriter);
+    await serializePlyCompressed(splats, serializeSettings, plyWriter);
     const plyBuffer = plyWriter.close();
 
     if (options.type === 'html') {
@@ -1040,13 +1045,13 @@ const serializeViewer = async (splats: Splat[], options: ViewerExportSettings, w
         const style = '<link rel="stylesheet" href="./index.css">';
         const script = '<script type="module" src="./index.js"></script>';
         const settings = 'settings: fetch(settingsUrl).then(response => response.json())';
-        const content = 'contentUrl,';
+        const content = 'fetch(contentUrl)';
 
         const html = indexHtml
         .replace(style, `<style>\n${pad(indexCss, 12)}\n        </style>`)
         .replace(script, `<script type="module">\n${pad(indexJs, 12)}\n        </script>`)
         .replace(settings, `settings: ${JSON.stringify(experienceSettings)}`)
-        .replace(content, `contentUrl: "data:application/ply;base64,${encodeBase64(plyBuffer)}",`);
+        .replace(content, `fetch("data:application/ply;base64,${encodeBase64(plyBuffer)}")`);
 
         await writer.write(new TextEncoder().encode(html), true);
     } else {
