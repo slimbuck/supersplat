@@ -487,29 +487,35 @@ class DataProcessor {
         }
     }
 
-    intersect(splat: Splat, options: IntersectOptions, doneCallback: (data: Uint8Array) => void) {
-        this.pushJob({
-            type: 'intersect',
-            splat,
-            options,
-            doneCallback
+    intersect(splat: Splat, options: IntersectOptions): Promise<Uint8Array> {
+        return new Promise<Uint8Array>((resolve) => {
+            this.pushJob({
+                type: 'intersect',
+                splat,
+                options,
+                doneCallback: (data: Uint8Array) => resolve(data)
+            });
         });
     }
 
-    calcBound(splat: Splat, options: CalcBoundOptions, doneCallback: () => void) {
-        this.pushJob({
-            type: 'calcBound',
-            splat,
-            options,
-            doneCallback
+    calcBound(splat: Splat, options: CalcBoundOptions): Promise<void> {
+        return new Promise<void>((resolve) => {
+            this.pushJob({
+                type: 'calcBound',
+                splat,
+                options,
+                doneCallback: () => resolve()
+            });
         });
     }
 
-    calcPositions(splat: Splat, doneCallback: (data: Float32Array) => void) {
-        this.pushJob({
-            type: 'calcPositions',
-            splat,
-            doneCallback
+    calcPositions(splat: Splat): Promise<Float32Array> {
+        return new Promise<Float32Array>((resolve) => {
+            this.pushJob({
+                type: 'calcPositions',
+                splat,
+                doneCallback: (data: Float32Array) => resolve(data)
+            });
         });
     }
 }

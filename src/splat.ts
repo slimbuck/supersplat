@@ -235,25 +235,25 @@ class Splat extends Element {
         this.scene.events.fire('splat.stateChanged', this);
     }
 
-    updatePositions() {
-        this.scene.dataProcessor.calcPositions(this, (data: Float32Array) => {
-            // update the splat centers which are used for render-time sorting
-            const state = this.splatData.getProp('state') as Uint8Array;
-            const { sorter } = this.entity.gsplat.instance;
-            const { centers } = sorter;
-            for (let i = 0; i < this.splatData.numSplats; ++i) {
-                if (state[i] === State.selected) {
-                    centers[i * 3 + 0] = data[i * 4];
-                    centers[i * 3 + 1] = data[i * 4 + 1];
-                    centers[i * 3 + 2] = data[i * 4 + 2];
-                }
+    async updatePositions() {
+        const data = await this.scene.dataProcessor.calcPositions(this);
+
+        // update the splat centers which are used for render-time sorting
+        const state = this.splatData.getProp('state') as Uint8Array;
+        const { sorter } = this.entity.gsplat.instance;
+        const { centers } = sorter;
+        for (let i = 0; i < this.splatData.numSplats; ++i) {
+            if (state[i] === State.selected) {
+                centers[i * 3 + 0] = data[i * 4];
+                centers[i * 3 + 1] = data[i * 4 + 1];
+                centers[i * 3 + 2] = data[i * 4 + 2];
             }
+        }
 
-            this.updateSorting();
+        this.updateSorting();
 
-            this.scene.forceRender = true;
-            this.scene.events.fire('splat.positionsChanged', this);
-        });
+        this.scene.forceRender = true;
+        this.scene.events.fire('splat.positionsChanged', this);
     }
 
     updateSorting() {
@@ -430,24 +430,22 @@ class Splat extends Element {
         this.scene.events.fire('splat.moved', this);
     }
 
-    makeSelectionBoundDirty() {
-        this.scene.dataProcessor.calcBound(this, {
+    async makeSelectionBoundDirty() {
+        await this.scene.dataProcessor.calcBound(this, {
             boundingBox: this.selectionBoundStorage,
             onlySelected: true
-        }, () => {
-            this.makeLocalBoundDirty();
         });
+        this.makeLocalBoundDirty();
     }
 
-    makeLocalBoundDirty() {
+    async makeLocalBoundDirty() {
         const { localBoundStorage } = this;
-        this.scene.dataProcessor.calcBound(this, {
+        await this.scene.dataProcessor.calcBound(this, {
             boundingBox: localBoundStorage,
             onlySelected: false
-        }, () => {
-            this.entity.getWorldTransform().transformPoint(localBoundStorage.center, vec);
-            this.makeWorldBoundDirty();
         });
+        this.entity.getWorldTransform().transformPoint(localBoundStorage.center, vec);
+        this.makeWorldBoundDirty();
     }
 
     makeWorldBoundDirty() {

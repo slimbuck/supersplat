@@ -226,11 +226,9 @@ const registerEditorEvents = (events: Events, editHistory: EditHistory, scene: S
         });
     });
 
-    const intersectCenters = (splat: Splat, op: 'add'|'remove'|'set', options: any) => {
-        scene.dataProcessor.intersect(splat, options, (data: Uint8Array) => {
-            const filter = (i: number) => data[i] === 255;
-            events.fire('edit.add', new SelectOp(splat, op, filter));
-        });
+    const intersectCenters = async (splat: Splat, op: 'add'|'remove'|'set', options: any) => {
+        const data = await scene.dataProcessor.intersect(splat, options);
+        events.fire('edit.add', new SelectOp(splat, op, (i: number) => data[i] === 255));
     };
 
     events.on('select.bySphere', (op: 'add'|'remove'|'set', sphere: number[]) => {
