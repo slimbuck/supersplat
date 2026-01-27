@@ -1,4 +1,10 @@
 import {
+    Column,
+    DataTable,
+    WebPCodec,
+    writeSog as writeSogInternal
+} from '@playcanvas/splat-transform';
+import {
     html as indexHtml,
     css as indexCss,
     js as indexJs
@@ -14,6 +20,8 @@ import {
 
 import { version } from '../package.json';
 import { Events } from './events';
+import { createBrowserDevice } from './loaders/browser-device';
+import { BrowserWriteFileSystem } from './loaders/browser-write-file-system';
 import {
     BufferWriter,
     ProgressWriter,
@@ -21,7 +29,6 @@ import {
 } from './serialize/writer';
 import { ZipWriter } from './serialize/zip-writer';
 import { SHRotation } from './sh-utils';
-import { serializeSog as serializeSogInternal } from './sog/serialize-sog';
 import { Splat } from './splat';
 import { State } from './splat-state';
 
@@ -1117,15 +1124,65 @@ const serializeViewer = async (splats: Splat[], serializeSettings: SerializeSett
     }
 };
 
-// Re-export serializeSog from sog module with a wrapper that uses SingleSplat
+// SOG serialization using splat-transform
 
 type SogSettings = SerializeSettings & {
     iterations: number;
     events?: Events;
 };
 
+/**
+ * Extract splat data into a DataTable for use with splat-transform.
+ */
+const extractDataTable = (
+    splats: Splat[],
+    memberNames: string[],
+    settings: SerializeSettings
+): DataTable => {
+    // Create filter and count total gaussians
+    const filter = new GaussianFilter(settings);
+    const totalGaussians = countGaussians(splats, filter);
+
+    if (totalGaussians === 0) {
+        throw new Error('No gaussians to export');
+    }
+
+    // Create SingleSplat for data extraction with transforms applied
+    const singleSplat = new SingleSplat(memberNames, settings);
+
+    // Create columns for the DataTable
+    const columns = memberNames.map(name => new Column(name, new Float32Array(totalGaussians)));
+    const dataTable = new DataTable(columns);
+
+    // Extract data from all splats
+    let idx = 0;
+    for (const splat of splats) {
+        filter.set(splat);
+
+        for (let i = 0; i < splat.splatData.numSplats; ++i) {
+            if (!filter.test(i)) continue;
+
+            singleSplat.read(splat, i);
+
+            // Copy data to columns
+            for (let j = 0; j < memberNames.length; ++j) {
+                (columns[j].data as Float32Array)[idx] = singleSplat.data[memberNames[j]] ?? 0;
+            }
+            idx++;
+        }
+    }
+
+    return dataTable;
+};
+
 const serializeSog = async (splats: Splat[], settings: SogSettings, writer: Writer): Promise<void> => {
     const { maxSHBands = 3, iterations = 10, events } = settings;
+
+    events?.fire('progressStart', 'Exporting SOG');
+    events?.fire('progressUpdate', { text: 'Extracting data...', progress: 0 });
+
+    // Configure WebP WASM location for browser
+    WebPCodec.wasmUrl = new URL('static/lib/webp/webp.wasm', document.baseURI).toString();
 
     // Determine which members to extract
     const shCoeffs = [0, 3, 8, 15][maxSHBands];
@@ -1137,31 +1194,24 @@ const serializeSog = async (splats: Splat[], settings: SogSettings, writer: Writ
         ...shNames.slice(0, shCoeffs * 3)
     ];
 
-    // Create SingleSplat for data extraction
-    const singleSplat = new SingleSplat(memberNames, settings);
+    // Extract data from Splat[] into DataTable
+    const dataTable = extractDataTable(splats, memberNames, settings);
 
-    // Create filter
-    const filter = new GaussianFilter(settings);
+    events?.fire('progressUpdate', { text: 'Compressing...', progress: 10 });
 
-    // Wrapper for getSingleSplat
-    const getSingleSplat = (splat: Splat, index: number): Record<string, number> => {
-        singleSplat.read(splat, index);
-        return { ...singleSplat.data };
-    };
+    // Create browser file system adapter
+    const fs = new BrowserWriteFileSystem(writer);
 
-    // Wrapper for filter
-    const filterFunc = (splat: Splat, index: number): boolean => {
-        filter.set(splat);
-        return filter.test(index);
-    };
+    // Call splat-transform's writeSog
+    await writeSogInternal({
+        filename: 'output.sog',
+        dataTable,
+        bundle: true,
+        iterations,
+        createDevice: createBrowserDevice
+    }, fs);
 
-    await serializeSogInternal(
-        splats,
-        getSingleSplat,
-        filterFunc,
-        { iterations, maxSHBands, events },
-        writer
-    );
+    events?.fire('progressEnd');
 };
 
 export {

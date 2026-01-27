@@ -1,43 +1,29 @@
 /**
- * WebGPU device management for SOG compression.
- * Creates a standalone WebGPU graphics device using PlayCanvas's WebgpuGraphicsDevice.
+ * Browser WebGPU device creation for use with splat-transform.
+ * Creates a WebgpuGraphicsDevice for GPU-accelerated k-means clustering.
  */
 
 import {
+    GraphicsDevice,
     PIXELFORMAT_BGRA8,
     Texture,
     WebgpuGraphicsDevice
 } from 'playcanvas';
 
-/**
- * Wrapper for a WebGPU graphics device used for compute operations.
- */
-class GpuDevice {
-    device: WebgpuGraphicsDevice;
-    private backbuffer: Texture;
-
-    constructor(device: WebgpuGraphicsDevice, backbuffer: Texture) {
-        this.device = device;
-        this.backbuffer = backbuffer;
-    }
-
-    destroy() {
-        this.backbuffer.destroy();
-        this.device.destroy();
-    }
-}
-
 // Cached GPU device for reuse across exports
-let cachedDevice: GpuDevice | null = null;
+let cachedDevice: GraphicsDevice | null = null;
+let cachedBackbuffer: Texture | null = null;
 
 /**
  * Create or retrieve a cached WebGPU device for compute operations.
  * The device is created once and reused for subsequent exports.
  *
- * @returns Promise resolving to a GpuDevice
+ * This function is compatible with splat-transform's DeviceCreator type.
+ *
+ * @returns Promise resolving to a GraphicsDevice
  * @throws Error if WebGPU is not available
  */
-const getGpuDevice = async (): Promise<GpuDevice> => {
+const createBrowserDevice = async (): Promise<GraphicsDevice> => {
     if (cachedDevice) {
         return cachedDevice;
     }
@@ -71,7 +57,9 @@ const getGpuDevice = async (): Promise<GpuDevice> => {
     // @ts-ignore - externalBackbuffer is an internal property
     graphicsDevice.externalBackbuffer = backbuffer;
 
-    cachedDevice = new GpuDevice(graphicsDevice, backbuffer);
+    cachedDevice = graphicsDevice;
+    cachedBackbuffer = backbuffer;
+
     return cachedDevice;
 };
 
@@ -79,11 +67,15 @@ const getGpuDevice = async (): Promise<GpuDevice> => {
  * Destroy the cached GPU device if it exists.
  * Call this when cleaning up resources.
  */
-const destroyGpuDevice = () => {
+const destroyBrowserDevice = () => {
+    if (cachedBackbuffer) {
+        cachedBackbuffer.destroy();
+        cachedBackbuffer = null;
+    }
     if (cachedDevice) {
         cachedDevice.destroy();
         cachedDevice = null;
     }
 };
 
-export { GpuDevice, getGpuDevice, destroyGpuDevice };
+export { createBrowserDevice, destroyBrowserDevice };

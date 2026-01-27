@@ -65,6 +65,18 @@ const filePickerTypes: { [key: string]: FilePickerAcceptType } = {
             'application/x-gaussian-splat': ['.splat']
         }
     },
+    'ksplat': {
+        description: 'KSplat File',
+        accept: {
+            'application/octet-stream': ['.ksplat']
+        }
+    },
+    'spz': {
+        description: 'SPZ File',
+        accept: {
+            'application/octet-stream': ['.spz']
+        }
+    },
     'indexTxt': {
         description: 'Colmap Poses (Images.txt)',
         accept: {
@@ -92,7 +104,7 @@ const allImportTypes = {
         'application/x-gaussian-splat': ['.json', '.sog', '.splat'],
         'image/webp': ['.webp'],
         'application/json': ['.lcc'],
-        'application/octet-stream': ['.bin'],
+        'application/octet-stream': ['.bin', '.ksplat', '.spz'],
         'text/plain': ['.txt']
     }
 };
@@ -346,7 +358,7 @@ const initFileHandler = (scene: Scene, events: Events, dropTarget: HTMLElement) 
             // check for unrecognized file types
             for (let i = 0; i < filenames.length; i++) {
                 const filename = filenames[i].toLowerCase();
-                if (['.ssproj', '.ply', '.splat', '.sog', '.webp', 'images.txt', '.json'].every(ext => !filename.endsWith(ext))) {
+                if (['.ssproj', '.ply', '.splat', '.sog', '.webp', 'images.txt', '.json', '.ksplat', '.spz'].every(ext => !filename.endsWith(ext))) {
                     await showLoadError('Unrecognized file type', filename);
                     return;
                 }
@@ -359,7 +371,7 @@ const initFileHandler = (scene: Scene, events: Events, dropTarget: HTMLElement) 
                 if (filename.endsWith('.ssproj')) {
                     // load ssproj document
                     await events.invoke('doc.load', files[i].contents ?? (await fetch(files[i].url)).arrayBuffer(), files[i].handle);
-                } else if (['.ply', '.splat', '.sog'].some(ext => filename.endsWith(ext))) {
+                } else if (['.ply', '.splat', '.sog', '.ksplat', '.spz'].some(ext => filename.endsWith(ext))) {
                     // load gaussian splat model
                     result.push(await importFile(files[i], animationFrame));
                 } else if (filename.endsWith('images.txt')) {
@@ -385,7 +397,7 @@ const initFileHandler = (scene: Scene, events: Events, dropTarget: HTMLElement) 
         fileSelector = document.createElement('input');
         fileSelector.setAttribute('id', 'file-selector');
         fileSelector.setAttribute('type', 'file');
-        fileSelector.setAttribute('accept', '.ply,.splat,meta.json,.json,.webp,.ssproj,.sog,.lcc,.bin,.txt');
+        fileSelector.setAttribute('accept', '.ply,.splat,meta.json,.json,.webp,.ssproj,.sog,.lcc,.bin,.txt,.ksplat,.spz');
         fileSelector.setAttribute('multiple', 'true');
 
         fileSelector.onchange = () => {
@@ -449,6 +461,8 @@ const initFileHandler = (scene: Scene, events: Events, dropTarget: HTMLElement) 
                         filePickerTypes.splat,
                         filePickerTypes.sog,
                         filePickerTypes.lcc,
+                        filePickerTypes.ksplat,
+                        filePickerTypes.spz,
                         filePickerTypes.indexTxt
                     ]
                 });
