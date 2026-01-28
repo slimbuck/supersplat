@@ -2,8 +2,10 @@ import { Container, Label, NumericInput } from '@playcanvas/pcui';
 import { Entity, Mat4, Quat, TranslateGizmo, Vec3 } from 'playcanvas';
 
 import { EntityTransformOp } from '../edit-ops';
+import { ElementType } from '../element';
 import { Events } from '../events';
 import { Scene } from '../scene';
+import { Selectable } from '../selection';
 import { Splat } from '../splat';
 import { Transform } from '../transform';
 import { localize } from '../ui/localization';
@@ -154,8 +156,9 @@ class MeasureTool {
             events.invoke('pivot').end();
         });
 
-        events.on('selection.changed', (selection: Splat) => {
-            splat = selection;
+        events.on('selection.changed', (selection: Selectable) => {
+            // Only handle Splat selections for measure tool
+            splat = (selection && selection.type === ElementType.splat) ? selection as Splat : null;
             if (active) {
                 // for now we always deactivate the tool so the current transform handler remains in place
                 events.fire('tool.deactivate');

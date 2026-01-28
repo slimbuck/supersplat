@@ -1,9 +1,11 @@
 import { Container, ContainerArgs, Label, NumericInput, VectorInput } from '@playcanvas/pcui';
 import { Quat, Vec3 } from 'playcanvas';
 
+import { ElementType } from '../element';
 import { Events } from '../events';
 import { localize } from './localization';
 import { Pivot } from '../pivot';
+import { Selectable } from '../selection';
 
 const v = new Vec3();
 
@@ -151,9 +153,10 @@ class Transform extends Container {
             input.on('slider:mouseup', mouseup);
         });
 
-        // toggle ui availability based on selection
-        events.on('selection.changed', (selection) => {
-            positionVector.enabled = rotationVector.enabled = scaleInput.enabled = !!selection;
+        // toggle ui availability based on selection (only for Splat selections)
+        events.on('selection.changed', (selection: Selectable) => {
+            const isSplat = selection && selection.type === ElementType.splat;
+            positionVector.enabled = rotationVector.enabled = scaleInput.enabled = isSplat;
         });
 
         events.on('pivot.placed', (pivot: Pivot) => {

@@ -15,9 +15,11 @@ import {
     Vec3
 } from 'playcanvas';
 
+import { Animatable, AnimTrack } from './anim-track';
 import { Element, ElementType } from './element';
 import { Serializer } from './serializer';
 import { vertexShader, fragmentShader, gsplatCenter } from './shaders/splat-shader';
+import { SplatAnimTrack } from './splat-anim-track';
 import { State } from './splat-state';
 import { Transform } from './transform';
 import { TransformPalette } from './transform-palette';
@@ -39,7 +41,7 @@ const boundingPoints =
         });
     }).flat(3);
 
-class Splat extends Element {
+class Splat extends Element implements Animatable {
     asset: Asset;
     splatData: GSplatData;
     numSplats = 0;
@@ -56,6 +58,9 @@ class Splat extends Element {
 
     _visible = true;
     transformPalette: TransformPalette;
+
+    // Animation track for splat transforms
+    private _animTrack: SplatAnimTrack | null = null;
 
     selectionAlpha = 1;
 
@@ -292,6 +297,28 @@ class Splat extends Element {
         return true;
     }
 
+    get animTrack(): AnimTrack | null {
+        return this._animTrack;
+    }
+
+    private onTimelineTime = (time: number) => {
+        this._animTrack?.evaluate(time);
+    };
+
+    private onTimelineFrame = (frame: number) => {
+        this._animTrack?.evaluate(frame);
+    };
+
+    private onTimelineFrames = () => {
+        // Trigger re-evaluation when timeline duration changes
+        this._animTrack?.evaluate(this.scene.events.invoke('timeline.frame'));
+    };
+
+    private onTimelineSmoothness = () => {
+        // Trigger re-evaluation when smoothness changes
+        this._animTrack?.evaluate(this.scene.events.invoke('timeline.frame'));
+    };
+
     async add() {
         // add the entity to the scene
         this.scene.contentRoot.addChild(this.entity);
@@ -302,12 +329,33 @@ class Splat extends Element {
         this.scene.events.on('view.bands', this.rebuildMaterial, this);
         this.rebuildMaterial(this.scene.events.invoke('view.bands'));
 
+        // Create animation track for this splat
+        this._animTrack = new SplatAnimTrack(this.scene.events, this);
+
+        // Register for timeline events
+        this.scene.events.on('timeline.time', this.onTimelineTime);
+        this.scene.events.on('timeline.frame', this.onTimelineFrame);
+        this.scene.events.on('timeline.frames', this.onTimelineFrames);
+        this.scene.events.on('timeline.smoothness', this.onTimelineSmoothness);
+
         // we must update state in case the state data was loaded from ply
         await this.updateState();
     }
 
     remove() {
         this.scene.events.off('view.bands', this.rebuildMaterial, this);
+
+        // Unregister timeline events
+        this.scene.events.off('timeline.time', this.onTimelineTime);
+        this.scene.events.off('timeline.frame', this.onTimelineFrame);
+        this.scene.events.off('timeline.frames', this.onTimelineFrames);
+        this.scene.events.off('timeline.smoothness', this.onTimelineSmoothness);
+
+        // Clear animation track
+        if (this._animTrack) {
+            this._animTrack.clear();
+            this._animTrack = null;
+        }
 
         this.scene.contentRoot.removeChild(this.entity);
         this.scene.boundDirty = true;

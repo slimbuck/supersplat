@@ -20,15 +20,15 @@ class Ticks extends Container {
 
         this.append(workArea);
 
-        let addKey: (value: number) => void;
-        let removeKey: (index: number) => void;
         let frameFromOffset: (offset: number) => number;
         let moveCursor: (frame: number) => void;
+        let keyElements: HTMLElement[] = [];
 
         // rebuild the timeline
         const rebuild = () => {
             // clear existing labels
             workArea.dom.innerHTML = '';
+            keyElements = [];
 
             const numFrames = events.invoke('timeline.frames');
             const currentFrame = events.invoke('timeline.frame');
@@ -57,15 +57,16 @@ class Ticks extends Container {
                 workArea.dom.appendChild(label);
             }
 
-            // keys
+            // keys - get from active track
+            const keys = events.invoke('track.keys') as number[] ?? [];
 
-            const keys: HTMLElement[] = [];
-            const createKey = (value: number) => {
+            const createKey = (keyFrame: number) => {
                 const label = document.createElement('div');
                 label.classList.add('time-label', 'key');
-                label.style.left = `${offsetFromFrame(value)}px`;
+                label.style.left = `${offsetFromFrame(keyFrame)}px`;
                 let dragging = false;
                 let toFrame = -1;
+                const fromFrame = keyFrame;
 
                 label.addEventListener('pointerdown', (event) => {
                     if (!dragging && event.isPrimary) {
@@ -85,11 +86,8 @@ class Ticks extends Container {
 
                 label.addEventListener('pointerup', (event: PointerEvent) => {
                     if (dragging && event.isPrimary) {
-                        const fromIndex = keys.indexOf(label);
-                        const fromFrame = events.invoke('timeline.keys')[fromIndex];
-                        if (fromFrame !== toFrame) {
-                            events.fire('timeline.moveKey', fromFrame, toFrame);
-                            events.fire('timeline.frame', events.invoke('timeline.frame'));
+                        if (fromFrame !== toFrame && toFrame >= 0) {
+                            events.fire('track.moveKey', fromFrame, toFrame);
                         }
 
                         label.releasePointerCapture(event.pointerId);
@@ -99,19 +97,10 @@ class Ticks extends Container {
                 });
 
                 workArea.dom.appendChild(label);
-                keys.push(label);
+                keyElements.push(label);
             };
 
-            (events.invoke('timeline.keys') as number[]).forEach(createKey);
-
-            addKey = (value: number) => {
-                createKey(value);
-            };
-
-            removeKey = (index: number) => {
-                workArea.dom.removeChild(keys[index]);
-                keys.splice(index, 1);
-            };
+            keys.forEach(createKey);
 
             // cursor
 
@@ -161,15 +150,37 @@ class Ticks extends Container {
         });
 
         events.on('timeline.frame', (frame: number) => {
-            moveCursor(frame);
+            moveCursor?.(frame);
         });
 
-        events.on('timeline.keyAdded', (value: number) => {
-            addKey(value);
+        // Rebuild when selection changes (to show different track's keys)
+        events.on('selection.changed', () => {
+            rebuild();
         });
 
-        events.on('timeline.keyRemoved', (index: number) => {
-            removeKey(index);
+        // Rebuild when track keys change
+        events.on('track.keyAdded', () => {
+            rebuild();
+        });
+
+        events.on('track.keyRemoved', () => {
+            rebuild();
+        });
+
+        events.on('track.keyMoved', () => {
+            rebuild();
+        });
+
+        events.on('track.keysLoaded', () => {
+            rebuild();
+        });
+
+        events.on('track.keysChanged', () => {
+            rebuild();
+        });
+
+        events.on('track.keysCleared', () => {
+            rebuild();
         });
     }
 }
@@ -310,6 +321,34 @@ class TimelinePanel extends Container {
         this.append(controlsWrap);
         this.append(ticks);
 
+        // Helper to check if an animatable target is selected
+        const hasAnimatableSelection = () => {
+            // Camera is always animatable
+            if (events.invoke('selection.isCamera')) {
+                return true;
+            }
+            // Check if selected splat has an animation track
+            const selection = events.invoke('selection');
+            if (selection && 'animTrack' in selection && selection.animTrack) {
+                return true;
+            }
+            return false;
+        };
+
+        // Helper to check if current frame has a key
+        const canDeleteKey = () => {
+            const keys = events.invoke('track.keys') as number[] ?? [];
+            const frame = events.invoke('timeline.frame');
+            return keys.includes(frame);
+        };
+
+        // Update key button states based on selection
+        const updateKeyButtonStates = () => {
+            const hasAnimatable = hasAnimatableSelection();
+            addKey.enabled = hasAnimatable;
+            removeKey.enabled = hasAnimatable && canDeleteKey();
+        };
+
         // ui handlers
 
         prev.on('click', () => {
@@ -334,25 +373,43 @@ class TimelinePanel extends Container {
         });
 
         addKey.on('click', () => {
-            events.fire('timeline.addKey');
+            events.fire('track.addKey');
         });
 
         removeKey.on('click', () => {
-            events.fire('timeline.removeKey');
+            const frame = events.invoke('timeline.frame');
+            events.fire('track.removeKey', frame);
         });
 
-        const canDelete = (frame: number) => events.invoke('timeline.keys').includes(frame);
-
-        events.on('timeline.frame', (frame: number) => {
-            removeKey.enabled = canDelete(frame);
+        // Update button states when frame changes
+        events.on('timeline.frame', () => {
+            updateKeyButtonStates();
         });
 
-        events.on('timeline.keyRemoved', (index: number) => {
-            removeKey.enabled = canDelete(events.invoke('timeline.frame'));
+        // Update button states when selection changes
+        events.on('selection.changed', () => {
+            updateKeyButtonStates();
         });
 
-        events.on('timeline.keyAdded', (frame: number) => {
-            removeKey.enabled = canDelete(frame);
+        // Update button states when track keys change
+        events.on('track.keyAdded', () => {
+            updateKeyButtonStates();
+        });
+
+        events.on('track.keyRemoved', () => {
+            updateKeyButtonStates();
+        });
+
+        events.on('track.keyMoved', () => {
+            updateKeyButtonStates();
+        });
+
+        events.on('track.keysLoaded', () => {
+            updateKeyButtonStates();
+        });
+
+        events.on('track.keysCleared', () => {
+            updateKeyButtonStates();
         });
 
         // cancel animation playback if user interacts with camera

@@ -8,8 +8,9 @@
         display: flex;
         flex-direction: row;
         padding: 2px;
+        align-items: center;
 
-        &:hover:not(.selected).visible {
+        &:hover:not(.selected) {
             cursor: pointer;
         }
 
@@ -21,6 +22,28 @@
             margin: 0;
             flex-grow: 1;
             flex-shrink: 1;
+        }
+
+        .camera-item-icon {
+            flex-grow: 0;
+            flex-shrink: 0;
+            width: 16px;
+            height: 16px;
+            margin-right: 4px;
+            color: $text-secondary;
+
+            svg {
+                width: 16px;
+                height: 16px;
+            }
+        }
+
+        &.camera-item:hover .camera-item-icon {
+            color: $text-primary;
+        }
+
+        &.camera-item.selected .camera-item-icon {
+            color: $text-primary;
         }
 
         .splat-item-text {

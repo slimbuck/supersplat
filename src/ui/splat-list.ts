@@ -3,7 +3,9 @@ import { Container, Label, Element as PcuiElement, TextInput } from '@playcanvas
 import { SplatRenameOp } from '../edit-ops';
 import { Element, ElementType } from '../element';
 import { Events } from '../events';
+import { Selectable } from '../selection';
 import { Splat } from '../splat';
+import cameraSvg from './svg/camera-panel.svg';
 import deleteSvg from './svg/delete.svg';
 import hiddenSvg from './svg/hidden.svg';
 import shownSvg from './svg/shown.svg';
@@ -12,6 +14,59 @@ const createSvg = (svgString: string) => {
     const decodedStr = decodeURIComponent(svgString.substring('data:image/svg+xml,'.length));
     return new DOMParser().parseFromString(decodedStr, 'image/svg+xml').documentElement;
 };
+
+/**
+ * Camera item that appears at the top of the scene list.
+ * Clicking it selects the camera for animation editing.
+ */
+class CameraItem extends Container {
+    getSelected: () => boolean;
+    setSelected: (value: boolean) => void;
+
+    constructor(args = {}) {
+        args = {
+            ...args,
+            class: ['splat-item', 'camera-item']
+        };
+
+        super(args);
+
+        const icon = new PcuiElement({
+            dom: createSvg(cameraSvg),
+            class: 'camera-item-icon'
+        });
+
+        const text = new Label({
+            class: 'splat-item-text',
+            text: 'Camera'
+        });
+
+        this.append(icon);
+        this.append(text);
+
+        this.getSelected = () => {
+            return this.class.contains('selected');
+        };
+
+        this.setSelected = (value: boolean) => {
+            if (value !== this.selected) {
+                if (value) {
+                    this.class.add('selected');
+                } else {
+                    this.class.remove('selected');
+                }
+            }
+        };
+    }
+
+    set selected(value: boolean) {
+        this.setSelected(value);
+    }
+
+    get selected() {
+        return this.getSelected();
+    }
+}
 
 class SplatItem extends Container {
     getName: () => string;
@@ -180,6 +235,15 @@ class SplatList extends Container {
             id: 'splat-edit'
         });
 
+        // Add camera item at the top
+        const cameraItem = new CameraItem();
+        this.append(cameraItem);
+
+        // Handle camera item click
+        cameraItem.on('click', () => {
+            events.fire('selection.selectCamera');
+        });
+
         events.on('scene.elementAdded', (element: Element) => {
             if (element.type === ElementType.splat) {
                 const splat = element as Splat;
@@ -215,7 +279,11 @@ class SplatList extends Container {
             }
         });
 
-        events.on('selection.changed', (selection: Splat) => {
+        events.on('selection.changed', (selection: Selectable) => {
+            // Update camera item selection
+            cameraItem.selected = events.invoke('selection.isCamera');
+
+            // Update splat items selection
             items.forEach((value, key) => {
                 value.selected = key === selection;
             });
@@ -281,6 +349,12 @@ class SplatList extends Container {
                 this.emit('removeClicked', element);
             });
         }
+
+        if (element instanceof CameraItem) {
+            element.on('click', () => {
+                this.emit('cameraClick');
+            });
+        }
     }
 
     protected _onRemoveChild(element: PcuiElement): void {
@@ -289,8 +363,12 @@ class SplatList extends Container {
             element.unbind('removeClicked');
         }
 
+        if (element instanceof CameraItem) {
+            element.unbind('click');
+        }
+
         super._onRemoveChild(element);
     }
 }
 
-export { SplatList, SplatItem };
+export { SplatList, SplatItem, CameraItem };

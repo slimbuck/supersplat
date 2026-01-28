@@ -1,5 +1,6 @@
 import { Color, createGraphicsDevice } from 'playcanvas';
 
+import { registerAnimTrackEvents } from './anim-track';
 import { registerCameraPosesEvents } from './camera-poses';
 import { registerDocEvents } from './doc';
 import { EditHistory } from './edit-history';
@@ -86,6 +87,7 @@ const main = async () => {
 
     // register events that only need the events object (before UI is created)
     registerTimelineEvents(events);
+    registerAnimTrackEvents(events);
     registerCameraPosesEvents(events);
     registerTransformHandlerEvents(events);
     registerPlySequenceEvents(events);

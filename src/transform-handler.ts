@@ -1,6 +1,8 @@
+import { ElementType } from './element';
 import { EntityTransformHandler } from './entity-transform-handler';
 import { Events } from './events';
 import { registerPivotEvents } from './pivot';
+import { Selectable } from './selection';
 import { Splat } from './splat';
 import { SplatsTransformHandler } from './splats-transform-handler';
 
@@ -36,9 +38,11 @@ const registerTransformHandlerEvents = (events: Events) => {
     const entityTransformHandler = new EntityTransformHandler(events);
     const splatsTransformHandler = new SplatsTransformHandler(events);
 
-    const update = (splat: Splat) => {
+    const update = (selection: Selectable) => {
         pop();
-        if (splat) {
+        // Only handle transform for Splat selections, not Camera
+        if (selection && selection.type === ElementType.splat) {
+            const splat = selection as Splat;
             if (splat.numSelected > 0) {
                 push(splatsTransformHandler);
             } else {
@@ -48,7 +52,13 @@ const registerTransformHandlerEvents = (events: Events) => {
     };
 
     events.on('selection.changed', update);
-    events.on('splat.stateChanged', update);
+    events.on('splat.stateChanged', (splat: Splat) => {
+        // Only update if this splat is currently selected
+        const selection = events.invoke('selection');
+        if (selection === splat) {
+            update(splat);
+        }
+    });
 
     events.on('transformHandler.push', (handler: TransformHandler) => {
         push(handler);
