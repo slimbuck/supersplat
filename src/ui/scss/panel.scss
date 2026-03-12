@@ -51,7 +51,7 @@
         }
     
         &:hover {
-            color: #ff9900;
+            color: $clr-hilight-hover;
             background-color: $bcg-darkest;
             cursor: pointer;
         }

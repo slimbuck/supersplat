@@ -1,5 +1,6 @@
 @use 'pcui-theme-grey.scss';
 @use 'colors.scss' as *;
+@use 'base-dialog.scss';
 @use 'tooltips.scss';
 @use 'panel.scss';
 @use 'menu-panel.scss';
@@ -80,7 +81,7 @@ body {
 
 #coord-space-toggle.active {
     background-color: $bcg-dark !important;
-    color: #f60;
+    color: $clr-hilight;
 }
 
 #file-selector {
@@ -120,7 +121,7 @@ body {
 
     &:hover {
         border: 1px solid $clr-hilight;
-        background-color: rgba(0, 0, 0, 0.25);
+        background-color: $bcg-darken;
     }
 }
 

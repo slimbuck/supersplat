@@ -1,44 +1,37 @@
 import { Button, Container, Element, Label } from '@playcanvas/pcui';
 
+import { BaseDialog } from './base-dialog';
 import { localize } from './localization';
 
-class Progress extends Container {
+class Progress extends BaseDialog {
     setHeader: (headerText: string) => void;
     setText: (text: string) => void;
     setProgress: (progress: number) => void;
     showCancelButton: (show: boolean) => void;
-    onCancel: (() => void) | null;
+    declare onCancel: (() => void) | null;
 
     constructor(args = {}) {
-        args = {
+        super({
             ...args,
             id: 'progress-container',
-            hidden: true
-        };
-
-        super(args);
+            showFooter: false
+        });
 
         this.onCancel = null;
-
-        this.dom.tabIndex = 0;
-
-        const header = new Label({
-            id: 'header'
-        });
+        this.dom.style.cursor = 'progress';
 
         const text = new Element({
             dom: 'div',
-            id: 'text'
+            class: 'ss-progress-text'
         });
 
         const bar = new Element({
             dom: 'div',
-            id: 'bar',
-            class: 'pulsate'
+            class: ['ss-progress-bar', 'pulsate']
         });
 
         const cancelButton = new Button({
-            id: 'cancel-button',
+            class: 'ss-progress-cancel',
             text: localize('panel.render.cancel'),
             hidden: true
         });
@@ -47,20 +40,9 @@ class Progress extends Container {
             if (this.onCancel) this.onCancel();
         });
 
-        const content = new Container({
-            id: 'content'
-        });
-        content.append(text);
-        content.append(bar);
-        content.append(cancelButton);
-
-        const dialog = new Container({
-            id: 'dialog'
-        });
-
-        dialog.append(header);
-        dialog.append(content);
-        this.append(dialog);
+        this.contentContainer.append(text);
+        this.contentContainer.append(bar);
+        this.contentContainer.append(cancelButton);
 
         this.dom.addEventListener('keydown', (event) => {
             if (this.hidden) return;
@@ -69,7 +51,7 @@ class Progress extends Container {
         });
 
         this.setHeader = (headerMsg: string) => {
-            header.text = headerMsg;
+            this.headerLabel.text = headerMsg;
         };
 
         this.setText = (textMsg: string) => {

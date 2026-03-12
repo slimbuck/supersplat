@@ -4,14 +4,10 @@ import { SplatRenameOp } from '../edit-ops';
 import { Element, ElementType } from '../element';
 import { Events } from '../events';
 import { Splat } from '../splat';
+import { parseSvg } from './svg';
 import deleteSvg from './svg/delete.svg';
 import hiddenSvg from './svg/hidden.svg';
 import shownSvg from './svg/shown.svg';
-
-const createSvg = (svgString: string) => {
-    const decodedStr = decodeURIComponent(svgString.substring('data:image/svg+xml,'.length));
-    return new DOMParser().parseFromString(decodedStr, 'image/svg+xml').documentElement;
-};
 
 class SplatItem extends Container {
     getName: () => string;
@@ -36,18 +32,18 @@ class SplatItem extends Container {
         });
 
         const visible = new PcuiElement({
-            dom: createSvg(shownSvg),
+            dom: parseSvg(shownSvg),
             class: 'splat-item-visible'
         });
 
         const invisible = new PcuiElement({
-            dom: createSvg(hiddenSvg),
+            dom: parseSvg(hiddenSvg),
             class: 'splat-item-visible',
             hidden: true
         });
 
         const remove = new PcuiElement({
-            dom: createSvg(deleteSvg),
+            dom: parseSvg(deleteSvg),
             class: 'splat-item-delete'
         });
 

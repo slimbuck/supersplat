@@ -3,6 +3,7 @@ import { Button, Container, Element, Label } from '@playcanvas/pcui';
 import { Events } from '../events';
 import { ShortcutManager } from '../shortcut-manager';
 import { localize } from './localization';
+import { parseSvg } from './svg';
 import cameraFrameSelectionSvg from './svg/camera-frame-selection.svg';
 import cameraResetSvg from './svg/camera-reset.svg';
 import centersSvg from './svg/centers.svg';
@@ -12,11 +13,6 @@ import orbitCameraSvg from './svg/orbit-camera.svg';
 import ringsSvg from './svg/rings.svg';
 import showHideSplatsSvg from './svg/show-hide-splats.svg';
 import { Tooltips } from './tooltips';
-
-const createSvg = (svgString: string) => {
-    const decodedStr = decodeURIComponent(svgString.substring('data:image/svg+xml,'.length));
-    return new DOMParser().parseFromString(decodedStr, 'image/svg+xml').documentElement;
-};
 
 class RightToolbar extends Container {
     constructor(events: Events, tooltips: Tooltips, args = {}) {
@@ -72,18 +68,18 @@ class RightToolbar extends Container {
             icon: 'E283'
         });
 
-        const centersDom = createSvg(centersSvg);
-        const ringsDom = createSvg(ringsSvg);
+        const centersDom = parseSvg(centersSvg);
+        const ringsDom = parseSvg(ringsSvg);
         ringsDom.style.display = 'none';
 
         ringsModeToggle.dom.appendChild(centersDom);
         ringsModeToggle.dom.appendChild(ringsDom);
-        showHideSplats.dom.appendChild(createSvg(showHideSplatsSvg));
-        orbitMode.dom.appendChild(createSvg(orbitCameraSvg));
-        flyMode.dom.appendChild(createSvg(flyCameraSvg));
-        cameraFrameSelection.dom.appendChild(createSvg(cameraFrameSelectionSvg));
-        cameraReset.dom.appendChild(createSvg(cameraResetSvg));
-        colorPanel.dom.appendChild(createSvg(colorPanelSvg));
+        showHideSplats.dom.appendChild(parseSvg(showHideSplatsSvg));
+        orbitMode.dom.appendChild(parseSvg(orbitCameraSvg));
+        flyMode.dom.appendChild(parseSvg(flyCameraSvg));
+        cameraFrameSelection.dom.appendChild(parseSvg(cameraFrameSelectionSvg));
+        cameraReset.dom.appendChild(parseSvg(cameraResetSvg));
+        colorPanel.dom.appendChild(parseSvg(colorPanelSvg));
 
         this.append(ringsModeToggle);
         this.append(showHideSplats);

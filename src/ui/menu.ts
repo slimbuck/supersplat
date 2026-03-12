@@ -1,10 +1,11 @@
-import { Container, Element, Label } from '@playcanvas/pcui';
+import { Container, Label } from '@playcanvas/pcui';
 
 import { Events } from '../events';
 import { recentFiles } from '../recent-files';
 import { ShortcutManager } from '../shortcut-manager';
 import { localize } from './localization';
 import { MenuPanel, MenuItem } from './menu-panel';
+import { createSvgElement } from './svg';
 import arrowSvg from './svg/arrow.svg';
 import collapseSvg from './svg/collapse.svg';
 import selectDelete from './svg/delete.svg';
@@ -22,13 +23,6 @@ import selectNone from './svg/select-none.svg';
 import selectSeparate from './svg/select-separate.svg';
 import selectUnlock from './svg/select-unlock.svg';
 
-const createSvg = (svgString: string) => {
-    const decodedStr = decodeURIComponent(svgString.substring('data:image/svg+xml,'.length));
-    return new Element({
-        dom: new DOMParser().parseFromString(decodedStr, 'image/svg+xml').documentElement
-    });
-};
-
 const getOpenRecentItems = async (events: Events) => {
     const files = await recentFiles.get();
     const items: MenuItem[] = files.map((file) => {
@@ -42,7 +36,7 @@ const getOpenRecentItems = async (events: Events) => {
         items.push({}); // separator
         items.push({
             text: localize('menu.file.open-recent.clear'),
-            icon: createSvg(selectDelete),
+            icon: createSvgElement(selectDelete),
             onSelect: () => recentFiles.clear()
         });
     }
@@ -96,12 +90,12 @@ class Menu extends Container {
             toggleCollapsed();
         }
 
-        const collapse = createSvg(collapseSvg);
+        const collapse = createSvgElement(collapseSvg);
         collapse.dom.classList.add('menu-icon');
         collapse.dom.setAttribute('id', 'menu-collapse');
         collapse.dom.addEventListener('click', toggleCollapsed);
 
-        const arrow = createSvg(arrowSvg);
+        const arrow = createSvgElement(arrowSvg);
         arrow.dom.classList.add('menu-icon');
         arrow.dom.setAttribute('id', 'menu-arrow');
         arrow.dom.addEventListener('click', toggleCollapsed);
@@ -123,24 +117,24 @@ class Menu extends Container {
 
         const exportMenuPanel = new MenuPanel([{
             text: localize('menu.file.export.ply'),
-            icon: createSvg(sceneExport),
+            icon: createSvgElement(sceneExport),
             isEnabled: () => !events.invoke('scene.empty'),
             onSelect: () => events.invoke('scene.export', 'ply')
         }, {
             text: localize('menu.file.export.splat'),
-            icon: createSvg(sceneExport),
+            icon: createSvgElement(sceneExport),
             isEnabled: () => !events.invoke('scene.empty'),
             onSelect: () => events.invoke('scene.export', 'splat')
         }, {
             text: localize('menu.file.export.sog'),
-            icon: createSvg(sceneExport),
+            icon: createSvgElement(sceneExport),
             isEnabled: () => !events.invoke('scene.empty'),
             onSelect: () => events.invoke('scene.export', 'sog')
         }, {
             // separator
         }, {
             text: localize('menu.file.export.viewer', { ellipsis: true }),
-            icon: createSvg(sceneExport),
+            icon: createSvgElement(sceneExport),
             isEnabled: () => !events.invoke('scene.empty'),
             onSelect: () => events.invoke('scene.export', 'viewer')
         }]);
@@ -149,18 +143,18 @@ class Menu extends Container {
 
         const fileMenuPanel = new MenuPanel([{
             text: localize('menu.file.new'),
-            icon: createSvg(sceneNew),
+            icon: createSvgElement(sceneNew),
             isEnabled: () => !events.invoke('scene.empty'),
             onSelect: () => events.invoke('doc.new')
         }, {
             text: localize('menu.file.open'),
-            icon: createSvg(sceneOpen),
+            icon: createSvgElement(sceneOpen),
             onSelect: async () => {
                 await events.invoke('doc.open');
             }
         }, {
             text: localize('menu.file.open-recent'),
-            icon: createSvg(sceneOpen),
+            icon: createSvgElement(sceneOpen),
             subMenu: openRecentMenuPanel,
             isEnabled: async () => {
                 // refresh open recent menu items when the parent menu is opened
@@ -177,64 +171,64 @@ class Menu extends Container {
             // separator
         }, {
             text: localize('menu.file.save'),
-            icon: createSvg(sceneSave),
+            icon: createSvgElement(sceneSave),
             isEnabled: () => events.invoke('doc.name'),
             onSelect: async () => await events.invoke('doc.save')
         }, {
             text: localize('menu.file.save-as', { ellipsis: true }),
-            icon: createSvg(sceneSave),
+            icon: createSvgElement(sceneSave),
             isEnabled: () => !events.invoke('scene.empty'),
             onSelect: async () => await events.invoke('doc.saveAs')
         }, {
             // separator
         }, {
             text: localize('menu.file.import', { ellipsis: true }),
-            icon: createSvg(sceneImport),
+            icon: createSvgElement(sceneImport),
             onSelect: async () => {
                 await events.invoke('scene.import');
             }
         }, {
             text: localize('menu.file.export'),
-            icon: createSvg(sceneExport),
+            icon: createSvgElement(sceneExport),
             subMenu: exportMenuPanel
         }, {
             text: localize('menu.file.publish', { ellipsis: true }),
-            icon: createSvg(scenePublish),
+            icon: createSvgElement(scenePublish),
             isEnabled: () => !events.invoke('scene.empty'),
             onSelect: async () => await events.invoke('show.publishSettingsDialog')
         }]);
 
         const selectionMenuPanel = new MenuPanel([{
             text: localize('menu.select.all'),
-            icon: createSvg(selectAll),
+            icon: createSvgElement(selectAll),
             extra: shortcutManager.formatShortcut('select.all'),
             onSelect: () => events.fire('select.all')
         }, {
             text: localize('menu.select.none'),
-            icon: createSvg(selectNone),
+            icon: createSvgElement(selectNone),
             extra: shortcutManager.formatShortcut('select.none'),
             onSelect: () => events.fire('select.none')
         }, {
             text: localize('menu.select.invert'),
-            icon: createSvg(selectInverse),
+            icon: createSvgElement(selectInverse),
             extra: shortcutManager.formatShortcut('select.invert'),
             onSelect: () => events.fire('select.invert')
         }, {
             // separator
         }, {
             text: localize('menu.select.lock'),
-            icon: createSvg(selectLock),
+            icon: createSvgElement(selectLock),
             extra: shortcutManager.formatShortcut('select.hide'),
             isEnabled: () => events.invoke('selection.splats'),
             onSelect: () => events.fire('select.hide')
         }, {
             text: localize('menu.select.unlock'),
-            icon: createSvg(selectUnlock),
+            icon: createSvgElement(selectUnlock),
             extra: shortcutManager.formatShortcut('select.unhide'),
             onSelect: () => events.fire('select.unhide')
         }, {
             text: localize('menu.select.delete'),
-            icon: createSvg(selectDelete),
+            icon: createSvgElement(selectDelete),
             extra: shortcutManager.formatShortcut('select.delete'),
             isEnabled: () => events.invoke('selection.splats'),
             onSelect: () => events.fire('select.delete')
@@ -245,23 +239,23 @@ class Menu extends Container {
             // separator
         }, {
             text: localize('menu.select.duplicate'),
-            icon: createSvg(selectDuplicate),
+            icon: createSvgElement(selectDuplicate),
             isEnabled: () => events.invoke('selection.splats'),
             onSelect: () => events.fire('select.duplicate')
         }, {
             text: localize('menu.select.separate'),
-            icon: createSvg(selectSeparate),
+            icon: createSvgElement(selectSeparate),
             isEnabled: () => events.invoke('selection.splats'),
             onSelect: () => events.fire('select.separate')
         }]);
 
         const renderMenuPanel = new MenuPanel([{
             text: localize('menu.render.image', { ellipsis: true }),
-            icon: createSvg(sceneExport),
+            icon: createSvgElement(sceneExport),
             onSelect: async () => await events.invoke('show.imageSettingsDialog')
         }, {
             text: localize('menu.render.video', { ellipsis: true }),
-            icon: createSvg(sceneExport),
+            icon: createSvgElement(sceneExport),
             onSelect: async () => await events.invoke('show.videoSettingsDialog')
         }]);
 

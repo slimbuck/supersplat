@@ -1,45 +1,12 @@
-@use 'colors.scss' as *;
+@use 'colors' as *;
+@use 'tokens' as *;
 
 #about-popup {
-    width: 100%;
-    height: 100%;
-
-    background-color: $bcg-darken;
-    pointer-events: all;
-
-    #about-dialog {
-        position: absolute;
-        left: 50%;
-        top: 50%;
+    .ss-dialog {
         min-width: 320px;
-        transform: translate(-50%, -50%);
-
-        display: flex;
-        flex-direction: column;
-        overflow: hidden;
-
-        border-radius: 8px;
-        background-color: $bcg-primary;
-
-        filter: drop-shadow(5px 5px 10px rgba(0, 0, 0, 0.8));
-
-        // the following is needed to get drop-shadow working on safari
-        will-change: transform;
     }
 
-    #about-header {
-        height: 32px;
-        line-height: 32px;
-        margin: 0;
-        padding: 0 8px;
-
-        font-weight: bold;
-        color: $text-primary;
-        background-color: $bcg-darker;
-        text-transform: uppercase;
-    }
-
-    #about-content {
+    .ss-dialog-content {
         display: flex;
         flex-direction: column;
         align-items: center;
@@ -47,7 +14,7 @@
         gap: 12px;
     }
 
-    #about-logo {
+    .about-logo {
         cursor: pointer;
         transition: opacity 0.15s ease;
 
@@ -60,7 +27,7 @@
         }
     }
 
-    #about-app-info {
+    .about-app-info {
         display: flex;
         flex-direction: column;
         align-items: center;
@@ -73,7 +40,7 @@
         }
     }
 
-    #about-app-name {
+    .about-app-name {
         margin: 0;
         font-family: 'Proxima Nova Bold', 'Helvetica Neue', Arial, Helvetica, sans-serif;
         font-size: 18px;
@@ -81,7 +48,7 @@
         color: $text-primary;
     }
 
-    #about-app-version {
+    .about-app-version {
         margin: 0;
         font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Consolas', monospace;
         font-size: 12px;
@@ -89,7 +56,7 @@
         color: $clr-hilight;
     }
 
-    #about-deps {
+    .about-deps {
         display: flex;
         flex-direction: column;
         gap: 4px;
@@ -102,8 +69,8 @@
         flex-direction: row;
         align-items: center;
         padding: 6px 10px;
-        border-radius: 4px;
-        background-color: rgba(0, 0, 0, 0.2);
+        border-radius: $radius-md;
+        background-color: $bcg-overlay-dark;
         cursor: pointer;
         transition: background-color 0.15s ease;
 

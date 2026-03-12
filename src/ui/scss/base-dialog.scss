@@ -1,0 +1,76 @@
+@use 'colors' as *;
+@use 'mixins' as *;
+@use 'tokens' as *;
+
+.ss-overlay {
+    @include overlay;
+}
+
+.ss-dialog {
+    @include dialog;
+}
+
+.ss-dialog-header {
+    @include dialog-header;
+}
+
+.ss-dialog-header-label {
+    margin: 0;
+    padding: 0 12px;
+    line-height: $dialog-header-height;
+    font-weight: bold;
+    color: $text-primary;
+}
+
+.ss-dialog-header-icon {
+    vertical-align: middle;
+    color: $clr-icon-hilight;
+}
+
+.ss-dialog-content {
+    @include dialog-content;
+}
+
+.ss-dialog-footer {
+    @include dialog-footer;
+}
+
+.ss-dialog-button {
+    @include dialog-button;
+}
+
+.ss-dialog-row {
+    @include dialog-row;
+}
+
+.ss-dialog-row-label {
+    @include dialog-row-label;
+}
+
+.ss-dialog-row-control {
+    @include dialog-row-control;
+}
+
+.ss-dialog-row-boolean {
+    @include dialog-row-boolean;
+}
+
+.ss-dialog-row-vector {
+    @include dialog-row-control;
+
+    div.pcui-numeric-input {
+        margin-top: 0;
+        margin-bottom: 0;
+        line-height: 22px;
+        > .pcui-numeric-input-slider-control::after {
+            top: -6px;
+        }
+    }
+}
+
+.ss-dialog-row .ss-dialog-row-control {
+    .pcui-slider-bar {
+        margin-right: 0;
+        width: calc(100% - 9px);
+    }
+}

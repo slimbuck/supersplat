@@ -1,5 +1,6 @@
 import { Button, Container, Label, TextInput } from '@playcanvas/pcui';
 
+import { BaseDialog } from './base-dialog';
 import { localize } from './localization';
 import { Tooltips } from './tooltips';
 
@@ -10,71 +11,58 @@ interface ShowOptions {
     link?: string;
 }
 
-class Popup extends Container {
+class Popup extends BaseDialog {
     show: (options: ShowOptions) => void;
-    hide: () => void;
-    destroy: () => void;
 
     constructor(tooltips: Tooltips, args = {}) {
-        args = {
+        super({
+            ...args,
             id: 'popup',
-            hidden: true,
-            tabIndex: -1,
-            ...args
-        };
-
-        super(args);
-
-        const dialog = new Container({
-            id: 'popup-dialog'
-        });
-
-        const header = new Label({
-            id: 'popup-header'
+            showFooter: false
         });
 
         const text = new Label({
-            id: 'popup-text'
+            class: 'ss-popup-text'
         });
 
         const linkText = new Label({
-            id: 'popup-link-text'
+            class: 'ss-popup-link-text'
         });
 
         const linkCopy = new Button({
-            id: 'popup-link-copy',
+            class: 'ss-popup-link-copy',
             icon: 'E351'
         });
 
         const linkRow = new Container({
-            id: 'popup-link-row'
+            class: 'ss-popup-link-row'
         });
 
         linkRow.append(linkText);
         linkRow.append(linkCopy);
 
         const okButton = new Button({
-            class: 'popup-button',
+            class: 'ss-popup-button',
             text: localize('popup.ok')
         });
 
         const cancelButton = new Button({
-            class: 'popup-button',
+            class: 'ss-popup-button',
             text: localize('popup.cancel')
         });
 
         const yesButton = new Button({
-            class: 'popup-button',
+            class: 'ss-popup-button',
             text: localize('popup.yes')
         });
 
         const noButton = new Button({
-            class: 'popup-button',
+            class: 'ss-popup-button',
             text: localize('popup.no')
         });
 
         const buttons = new Container({
-            id: 'popup-buttons'
+            class: 'ss-popup-buttons'
         });
 
         buttons.append(okButton);
@@ -82,12 +70,9 @@ class Popup extends Container {
         buttons.append(yesButton);
         buttons.append(noButton);
 
-        dialog.append(header);
-        dialog.append(text);
-        dialog.append(linkRow);
-        dialog.append(buttons);
-
-        this.append(dialog);
+        this.contentContainer.append(text);
+        this.contentContainer.append(linkRow);
+        this.contentContainer.append(buttons);
 
         let okFn: () => void;
         let cancelFn: () => void;
@@ -96,36 +81,21 @@ class Popup extends Container {
         let containerFn: () => void;
         let copyFn: () => void;
 
-        okButton.on('click', () => {
-            okFn();
-        });
+        okButton.on('click', () => okFn());
+        cancelButton.on('click', () => cancelFn());
+        yesButton.on('click', () => yesFn());
+        noButton.on('click', () => noFn());
 
-        cancelButton.on('click', () => {
-            cancelFn();
-        });
+        this.on('click', () => containerFn());
 
-        yesButton.on('click', () => {
-            yesFn();
-        });
-
-        noButton.on('click', () => {
-            noFn();
-        });
-
-        this.on('click', () => {
-            containerFn();
-        });
-
-        dialog.on('click', (event) => {
+        this.dialogContainer.on('click', (event: MouseEvent) => {
             event.stopPropagation();
         });
 
-        linkCopy.on('click', () => {
-            copyFn();
-        });
+        linkCopy.on('click', () => copyFn());
 
         this.show = (options: ShowOptions) => {
-            header.text = options.header;
+            this.headerLabel.text = options.header;
             text.text = options.message;
 
             const { type, link } = options;
@@ -134,7 +104,6 @@ class Popup extends Container {
                 text.class[t === type ? 'add' : 'remove'](t);
             });
 
-            // configure based on message type
             okButton.hidden = type === 'yesno';
             cancelButton.hidden = type !== 'okcancel';
             yesButton.hidden = type !== 'yesno';
@@ -147,26 +116,23 @@ class Popup extends Container {
                 linkCopy.icon = 'E352';
             }
 
-            // take keyboard focus so shortcuts stop working
             this.dom.focus();
 
             return new Promise<{action: string, value?: string}>((resolve) => {
                 okFn = () => {
-                    this.hide();
-                    resolve({
-                        action: 'ok'
-                    });
+                    this.hideDialog();
+                    resolve({ action: 'ok' });
                 };
                 cancelFn = () => {
-                    this.hide();
+                    this.hideDialog();
                     resolve({ action: 'cancel' });
                 };
                 yesFn = () => {
-                    this.hide();
+                    this.hideDialog();
                     resolve({ action: 'yes' });
                 };
                 noFn = () => {
-                    this.hide();
+                    this.hideDialog();
                     resolve({ action: 'no' });
                 };
                 containerFn = () => {
@@ -179,15 +145,6 @@ class Popup extends Container {
                     linkCopy.icon = 'E348';
                 };
             });
-        };
-
-        this.hide = () => {
-            this.hidden = true;
-        };
-
-        this.destroy = () => {
-            this.hide();
-            super.destroy();
         };
 
         tooltips.register(linkCopy, localize('popup.copy-to-clipboard'));

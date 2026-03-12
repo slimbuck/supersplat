@@ -12,6 +12,7 @@ $clr-disabled: #7c7678;
 $clr-active: white;
 $clr-hilight: #f60;
 $clr-icon-hilight: #FFAF50;
+$clr-hilight-hover: #ff9900;
 
 $bcg-lighter: #444;
 $bcg-light: #555;
@@ -22,3 +23,13 @@ $bcg-darkest: #181818;
 
 // darken amount when showing modal dialogs
 $bcg-darken: rgba(0, 0, 0, 0.25);
+
+// subtle overlay colors for interactive list items
+$bcg-overlay-hover: rgba(255, 255, 255, 0.04);
+$bcg-overlay-border: rgba(255, 255, 255, 0.08);
+$bcg-overlay-dark: rgba(0, 0, 0, 0.2);
+
+// spinner/progress colors
+$clr-spinner: #aaa;
+$bcg-progress: #505050;
+$bcg-progress-pulse: #404040;

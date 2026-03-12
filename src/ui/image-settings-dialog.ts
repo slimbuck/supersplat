@@ -1,51 +1,31 @@
-import { BooleanInput, Button, Container, Element, Label, NumericInput, SelectInput, VectorInput } from '@playcanvas/pcui';
+import { BooleanInput, Button, Container, Label, NumericInput, SelectInput, VectorInput } from '@playcanvas/pcui';
 
 import { Events } from '../events';
 import { ImageSettings } from '../render';
+import { BaseDialog } from './base-dialog';
 import { localize } from './localization';
+import { createSvgElement } from './svg';
 import sceneExport from './svg/export.svg';
 
-const createSvg = (svgString: string, args = {}) => {
-    const decodedStr = decodeURIComponent(svgString.substring('data:image/svg+xml,'.length));
-    return new Element({
-        dom: new DOMParser().parseFromString(decodedStr, 'image/svg+xml').documentElement,
-        ...args
-    });
-};
-
-class ImageSettingsDialog extends Container {
+class ImageSettingsDialog extends BaseDialog {
     show: () => Promise<ImageSettings | null>;
-    hide: () => void;
-    destroy: () => void;
 
     constructor(events: Events, args = {}) {
-        args = {
+        super({
             ...args,
             id: 'image-settings-dialog',
-            class: 'settings-dialog',
-            hidden: true,
-            tabIndex: -1
-        };
-
-        super(args);
-
-        const dialog = new Container({
-            id: 'dialog'
+            title: localize('popup.render-image.header'),
+            okText: localize('panel.render.ok'),
+            cancelText: localize('panel.render.cancel')
         });
 
-        // header
-
-        const headerIcon = createSvg(sceneExport, { id: 'icon' });
-        const headerText = new Label({ id: 'text', text: localize('popup.render-image.header').toUpperCase() });
-        const header = new Container({ id: 'header' });
-        header.append(headerIcon);
-        header.append(headerText);
+        // header icon
+        this.headerContainer.prepend(createSvgElement(sceneExport, { class: 'ss-dialog-header-icon' }));
 
         // preset
-
-        const presetLabel = new Label({ class: 'label', text: localize('popup.render-image.preset') });
+        const presetLabel = new Label({ class: 'ss-dialog-row-label', text: localize('popup.render-image.preset') });
         const presetSelect = new SelectInput({
-            class: 'select',
+            class: 'ss-dialog-row-control',
             defaultValue: 'viewport',
             options: [
                 { v: 'viewport', t: localize('popup.render-image.resolution-current') },
@@ -55,75 +35,45 @@ class ImageSettingsDialog extends Container {
                 { v: 'custom', t: localize('popup.render-image.resolution-custom') }
             ]
         });
-        const presetRow = new Container({ class: 'row' });
+        const presetRow = new Container({ class: 'ss-dialog-row' });
         presetRow.append(presetLabel);
         presetRow.append(presetSelect);
 
         // resolution
-
-        const resolutionLabel = new Label({ class: 'label', text: localize('popup.render-image.resolution') });
+        const resolutionLabel = new Label({ class: 'ss-dialog-row-label', text: localize('popup.render-image.resolution') });
         const resolutionValue = new VectorInput({
-            class: 'vector-input',
+            class: 'ss-dialog-row-vector',
             dimensions: 2,
             min: 4,
             max: 16000,
             precision: 0,
             value: [1024, 768]
         });
-        const resolutionRow = new Container({ class: 'row', enabled: false });
+        const resolutionRow = new Container({ class: 'ss-dialog-row', enabled: false });
         resolutionRow.append(resolutionLabel);
         resolutionRow.append(resolutionValue);
 
         // transparent background
-
-        const transparentBgLabel = new Label({ class: 'label', text: localize('popup.render-image.transparent-bg') });
-        const transparentBgBoolean = new BooleanInput({ class: 'boolean', value: false });
-        const transparentBgRow = new Container({ class: 'row' });
+        const transparentBgLabel = new Label({ class: 'ss-dialog-row-label', text: localize('popup.render-image.transparent-bg') });
+        const transparentBgBoolean = new BooleanInput({ class: 'ss-dialog-row-boolean', value: false });
+        const transparentBgRow = new Container({ class: 'ss-dialog-row' });
         transparentBgRow.append(transparentBgLabel);
         transparentBgRow.append(transparentBgBoolean);
 
         // show debug overlays
-
-        const showDebugLabel = new Label({ class: 'label', text: localize('popup.render-image.show-debug') });
-        const showDebugBoolean = new BooleanInput({ class: 'boolean', value: false });
-        const showDebugRow = new Container({ class: 'row' });
+        const showDebugLabel = new Label({ class: 'ss-dialog-row-label', text: localize('popup.render-image.show-debug') });
+        const showDebugBoolean = new BooleanInput({ class: 'ss-dialog-row-boolean', value: false });
+        const showDebugRow = new Container({ class: 'ss-dialog-row' });
         showDebugRow.append(showDebugLabel);
         showDebugRow.append(showDebugBoolean);
 
         // content
-
-        const content = new Container({ id: 'content' });
-        content.append(presetRow);
-        content.append(resolutionRow);
-        content.append(transparentBgRow);
-        content.append(showDebugRow);
-
-        // footer
-
-        const footer = new Container({ id: 'footer' });
-
-        const cancelButton = new Button({
-            class: 'button',
-            text: localize('panel.render.cancel')
-        });
-
-        const okButton = new Button({
-            class: 'button',
-            text: localize('panel.render.ok')
-        });
-
-        footer.append(cancelButton);
-        footer.append(okButton);
-
-        dialog.append(header);
-        dialog.append(content);
-        dialog.append(footer);
-
-        this.append(dialog);
+        this.contentContainer.append(presetRow);
+        this.contentContainer.append(resolutionRow);
+        this.contentContainer.append(transparentBgRow);
+        this.contentContainer.append(showDebugRow);
 
         let targetSize: { width: number, height: number };
-
-        // Handle custom resolution activation
 
         const updateResolution = () => {
             const widths: Record<string, number> = {
@@ -154,68 +104,30 @@ class ImageSettingsDialog extends Container {
             }
         });
 
-        // handle key bindings for enter and escape
-
-        let onCancel: () => void;
-        let onOK: () => void;
-
-        cancelButton.on('click', () => onCancel());
-        okButton.on('click', () => onOK());
-
-        const keydown = (e: KeyboardEvent) => {
-            if (e.key === 'Escape') {
-                e.preventDefault();
-                e.stopPropagation();
-                onCancel();
-            }
-        };
-
-        // reset UI and configure for current state
+        // reset UI
         const reset = () => {
             updateResolution();
         };
 
-        // function implementations
-
         this.show = () => {
             targetSize = events.invoke('targetSize');
-
             reset();
-
-            this.hidden = false;
-            document.addEventListener('keydown', keydown);
-            this.dom.focus();
+            this.showDialog();
 
             return new Promise<ImageSettings | null>((resolve) => {
-                onCancel = () => {
-                    resolve(null);
-                };
-
-                onOK = () => {
+                this.onCancel = () => resolve(null);
+                this.onOK = () => {
                     const [width, height] = resolutionValue.value;
-
-                    const imageSettings = {
+                    resolve({
                         width,
                         height,
                         transparentBg: transparentBgBoolean.value,
                         showDebug: showDebugBoolean.value
-                    };
-
-                    resolve(imageSettings);
+                    });
                 };
             }).finally(() => {
-                document.removeEventListener('keydown', keydown);
-                this.hide();
+                this.hideDialog();
             });
-        };
-
-        this.hide = () => {
-            this.hidden = true;
-        };
-
-        this.destroy = () => {
-            this.hide();
-            super.destroy();
         };
     }
 }

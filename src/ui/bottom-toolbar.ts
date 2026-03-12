@@ -1,8 +1,9 @@
-import { Button, Element, Container } from '@playcanvas/pcui';
+import { Button, Container, Element } from '@playcanvas/pcui';
 
 import { Events } from '../events';
 import { ShortcutManager } from '../shortcut-manager';
 import { localize } from './localization';
+import { parseSvg } from './svg';
 import redoSvg from './svg/redo.svg';
 import brushSvg from './svg/select-brush.svg';
 import eyedropperSvg from './svg/select-eyedropper.svg';
@@ -15,11 +16,6 @@ import boxSvg from './svg/show-hide-splats.svg';
 import undoSvg from './svg/undo.svg';
 import { Tooltips } from './tooltips';
 // import cropSvg from './svg/crop.svg';
-
-const createSvg = (svgString: string) => {
-    const decodedStr = decodeURIComponent(svgString.substring('data:image/svg+xml,'.length));
-    return new DOMParser().parseFromString(decodedStr, 'image/svg+xml').documentElement;
-};
 
 class BottomToolbar extends Container {
     constructor(events: Events, tooltips: Tooltips, args = {}) {
@@ -127,17 +123,17 @@ class BottomToolbar extends Container {
             icon: 'E189'
         });
 
-        undo.dom.appendChild(createSvg(undoSvg));
-        redo.dom.appendChild(createSvg(redoSvg));
-        picker.dom.appendChild(createSvg(pickerSvg));
-        polygon.dom.appendChild(createSvg(polygonSvg));
-        brush.dom.appendChild(createSvg(brushSvg));
-        flood.dom.appendChild(createSvg(floodSvg));
-        sphere.dom.appendChild(createSvg(sphereSvg));
-        box.dom.appendChild(createSvg(boxSvg));
-        lasso.dom.appendChild(createSvg(lassoSvg));
-        eyedropper.dom.appendChild(createSvg(eyedropperSvg));
-        // crop.dom.appendChild(createSvg(cropSvg));
+        undo.dom.appendChild(parseSvg(undoSvg));
+        redo.dom.appendChild(parseSvg(redoSvg));
+        picker.dom.appendChild(parseSvg(pickerSvg));
+        polygon.dom.appendChild(parseSvg(polygonSvg));
+        brush.dom.appendChild(parseSvg(brushSvg));
+        flood.dom.appendChild(parseSvg(floodSvg));
+        sphere.dom.appendChild(parseSvg(sphereSvg));
+        box.dom.appendChild(parseSvg(boxSvg));
+        lasso.dom.appendChild(parseSvg(lassoSvg));
+        eyedropper.dom.appendChild(parseSvg(eyedropperSvg));
+        // crop.dom.appendChild(parseSvg(cropSvg));
 
         this.append(undo);
         this.append(redo);

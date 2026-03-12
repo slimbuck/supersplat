@@ -3,16 +3,12 @@ import { Container, Element, Label } from '@playcanvas/pcui';
 import { Events } from '../events';
 import { localize } from './localization';
 import { SplatList } from './splat-list';
+import { parseSvg } from './svg';
 import sceneImportSvg from './svg/import.svg';
 import sceneNewSvg from './svg/new.svg';
 import soloSvg from './svg/solo.svg';
 import { Tooltips } from './tooltips';
 import { Transform } from './transform';
-
-const createSvg = (svgString: string) => {
-    const decodedStr = decodeURIComponent(svgString.substring('data:image/svg+xml,'.length));
-    return new DOMParser().parseFromString(decodedStr, 'image/svg+xml').documentElement;
-};
 
 class ScenePanel extends Container {
     constructor(events: Events, tooltips: Tooltips, args = {}) {
@@ -48,7 +44,7 @@ class ScenePanel extends Container {
         const soloToggle = new Container({
             class: 'panel-header-button'
         });
-        soloToggle.dom.appendChild(createSvg(soloSvg));
+        soloToggle.dom.appendChild(parseSvg(soloSvg));
 
         soloToggle.on('click', () => {
             soloActive = !soloActive;
@@ -63,12 +59,12 @@ class ScenePanel extends Container {
         const sceneImport = new Container({
             class: 'panel-header-button'
         });
-        sceneImport.dom.appendChild(createSvg(sceneImportSvg));
+        sceneImport.dom.appendChild(parseSvg(sceneImportSvg));
 
         const sceneNew = new Container({
             class: 'panel-header-button'
         });
-        sceneNew.dom.appendChild(createSvg(sceneNewSvg));
+        sceneNew.dom.appendChild(parseSvg(sceneNewSvg));
 
         sceneHeader.append(sceneIcon);
         sceneHeader.append(sceneLabel);

@@ -1,0 +1,161 @@
+@use 'colors' as *;
+@use 'tokens' as *;
+
+// Full-screen semi-transparent backdrop for modal dialogs
+@mixin overlay {
+    width: 100%;
+    height: 100%;
+    background-color: $bcg-darken;
+    pointer-events: all;
+}
+
+// Centered dialog box with shadow and Safari workaround
+@mixin dialog($width: auto, $min-width: null, $max-width: null) {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+
+    @if $width != auto {
+        width: $width;
+    }
+    @if $min-width {
+        min-width: $min-width;
+    }
+    @if $max-width {
+        max-width: $max-width;
+    }
+
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+
+    border-radius: $radius-lg;
+    background-color: $bcg-primary;
+
+    filter: $shadow-dialog;
+    will-change: transform;
+}
+
+// Dialog header bar
+@mixin dialog-header {
+    height: $dialog-header-height;
+    line-height: $dialog-header-height;
+    margin: 0;
+    padding: 0 8px;
+
+    font-weight: bold;
+    color: $text-primary;
+    background-color: $bcg-darker;
+    text-transform: uppercase;
+}
+
+// Dialog content area
+@mixin dialog-content {
+    min-height: 60px;
+    padding: 12px;
+}
+
+// Dialog footer with centered buttons
+@mixin dialog-footer {
+    display: flex;
+    justify-content: center;
+    padding-bottom: 4px;
+}
+
+// Standard dialog action button
+@mixin dialog-button {
+    width: $dialog-button-width;
+    height: $dialog-button-height;
+    border-radius: $radius-md;
+
+    &:hover {
+        color: $text-primary;
+        background-color: $clr-hilight;
+    }
+}
+
+// Label + control row layout used in settings dialogs
+@mixin dialog-row {
+    line-height: $dialog-row-height;
+    padding-bottom: 8px;
+
+    &:not(.pcui-hidden) {
+        display: flex;
+    }
+}
+
+// Label inside a dialog row
+@mixin dialog-row-label($width: $dialog-label-width) {
+    width: $width;
+    margin: 0;
+    flex-grow: 0;
+    flex-shrink: 0;
+}
+
+// Control inside a dialog row (select, slider, text-input, etc.)
+@mixin dialog-row-control {
+    margin: 0;
+    flex-grow: 1;
+}
+
+// Boolean toggle inside a dialog row (right-aligned)
+@mixin dialog-row-boolean {
+    margin: 5px 0 0 auto;
+    flex-grow: 0;
+}
+
+// Shared toolbar item base (button, tool, toggle)
+@mixin toolbar-item {
+    width: $toolbar-item-size;
+    height: $toolbar-item-size;
+    padding: 0;
+    border: 0;
+    border-radius: $radius-sm;
+
+    &::before {
+        font-size: $toolbar-icon-size !important;
+        line-height: 100%;
+    }
+
+    svg {
+        color: $clr-default;
+    }
+}
+
+// Tool button with active/disabled states
+@mixin toolbar-tool {
+    background-color: $bcg-primary;
+
+    svg {
+        color: $clr-default;
+    }
+
+    &.active {
+        color: $clr-active;
+        background-color: $clr-hilight !important;
+
+        svg {
+            color: $clr-active;
+        }
+    }
+
+    &.disabled {
+        background-color: $bcg-dark;
+
+        svg {
+            color: $clr-disabled;
+        }
+    }
+}
+
+// Toggle button active state
+@mixin toolbar-toggle-active {
+    &::before {
+        color: $clr-hilight;
+    }
+
+    svg {
+        color: $clr-hilight;
+    }
+}

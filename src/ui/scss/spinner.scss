@@ -22,7 +22,7 @@
         transform-origin: 0% 50%;
         animation: spinner-spin 1s linear 0s infinite;
         border-width: 3px;
-        border-color: #aaa;
+        border-color: $clr-spinner;
     }
 
     .spinner::before {

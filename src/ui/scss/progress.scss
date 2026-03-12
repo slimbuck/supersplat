@@ -1,68 +1,37 @@
-@use 'colors.scss' as *;
+@use 'colors' as *;
+@use 'tokens' as *;
 
 #progress-container {
-    left: 0;
-    top: 0;
-    width: 100%;
-    height: 100%;
-    background-color: $bcg-darken;
-    pointer-events: all;
-    cursor: progress;
+    .ss-dialog-header-label {
+        color: $text-secondary;
+    }
 
-    #dialog {
-        position: absolute;
-        left: 50%;
-        top: 50%;
-        transform: translate(-50%, -50%);
-
-        border-radius: 8px;
-        background-color: $bcg-primary;
-        filter: drop-shadow(5px 5px 10px rgba(0, 0, 0, 0.8));
-        will-change: transform;     // needed for drop-shadow to work on Safari
-
+    .ss-dialog-content {
+        width: 360px;
+        height: 100%;
         display: flex;
         flex-direction: column;
-        overflow: hidden;
+        gap: 16px;
+        padding: 16px;
+    }
 
-        #header {
-            height: 32px;
-            line-height: 32px;
-            margin: 0px;
-            padding: 0px 8px;
+    .ss-progress-text {
+        width: 100%;
+        text-wrap: wrap;
+        color: $text-secondary;
+    }
 
-            font-weight: bold;
-            color: $text-secondary;
-            background-color: $bcg-darker;
-        }
+    .ss-progress-bar {
+        width: 100%;
+        height: 12px;
+        border: 1px solid $bcg-dark;
+        border-radius: 6px;
+        background-color: $bcg-progress;
+    }
 
-        #content {
-            width: 360px;
-            height: 100%;
-            display: flex;
-            flex-direction: column;
-            gap: 16px;
-
-            padding: 16px;
-
-            #text {
-                width: 100%;
-                text-wrap: wrap;
-                color: $text-secondary;
-            }
-
-            #bar {
-                width: 100%;
-                height: 12px;
-                border: 1px solid $bcg-dark;
-                border-radius: 6px;
-                background-color: #505050;
-            }
-
-            #cancel-button {
-                align-self: center;
-                margin: 0px;
-            }
-        }
+    .ss-progress-cancel {
+        align-self: center;
+        margin: 0;
     }
 
     .pulsate {
@@ -75,7 +44,7 @@
 
     @keyframes color {
         to {
-            background-color: #404040;
+            background-color: $bcg-progress-pulse;
         }
     }
 }

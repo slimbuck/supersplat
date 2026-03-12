@@ -2,18 +2,17 @@ import { Container, Label } from '@playcanvas/pcui';
 
 import { Events } from '../events';
 import { ShortcutManager } from '../shortcut-manager';
+import { BaseDialog } from './base-dialog';
 import { localize } from './localization';
 
-// Popup display configuration - maps shortcuts to categories and locale keys
-// This is separate from the shortcut bindings themselves (separation of concerns)
 interface ShortcutDisplayItem {
-    id: string;           // event ID to look up in ShortcutManager
-    localeKey: string;    // localization key for the action description
+    id: string;
+    localeKey: string;
 }
 
 interface HintDisplayItem {
-    displayKey: string;   // what to show in the key column
-    localeKey: string;    // localization key for the action description
+    displayKey: string;
+    localeKey: string;
 }
 
 interface CategoryConfig {
@@ -22,7 +21,6 @@ interface CategoryConfig {
     hints?: HintDisplayItem[];
 }
 
-// Display configuration for the shortcuts popup
 const popupConfig: Record<string, CategoryConfig> = {
     navigation: {
         localeKey: 'popup.shortcuts.navigation',
@@ -107,62 +105,24 @@ const popupConfig: Record<string, CategoryConfig> = {
     }
 };
 
-// Category display order
 const categoryOrder = ['navigation', 'camera', 'show', 'selection', 'tools', 'playback', 'other'];
 
-class ShortcutsPopup extends Container {
+class ShortcutsPopup extends BaseDialog {
     constructor(events: Events, args = {}) {
-        args = {
+        super({
             ...args,
             id: 'shortcuts-popup',
-            hidden: true,
-            tabIndex: -1
-        };
-
-        super(args);
-
-        // Handle keyboard events to prevent global shortcuts from firing
-        this.dom.addEventListener('keydown', (e: KeyboardEvent) => {
-            if (e.key === 'Escape') {
-                this.hidden = true;
-            }
-            e.stopPropagation();
+            title: localize('popup.shortcuts.title'),
+            showFooter: false,
+            dismissOnOverlayClick: true
         });
 
-        // Close when clicking outside dialog
-        this.on('click', () => {
-            this.hidden = true;
-        });
-
-        const dialog = new Container({
-            id: 'dialog'
-        });
-
-        // Prevent clicks inside dialog from closing
-        dialog.on('click', (event: MouseEvent) => {
-            event.stopPropagation();
-        });
-
-        // Header
-        const header = new Label({
-            id: 'header',
-            text: localize('popup.shortcuts.title').toUpperCase()
-        });
-
-        // Content
-        const content = new Container({
-            id: 'content'
-        });
-
-        // Get the shortcut manager from events
         const shortcutManager: ShortcutManager = events.invoke('shortcutManager');
 
-        // Build the shortcut list from the popup display configuration
         for (const categoryId of categoryOrder) {
             const config = popupConfig[categoryId];
             if (!config) continue;
 
-            // Add category header
             const headerLabel = new Label({
                 class: 'shortcut-header-label',
                 text: localize(config.localeKey)
@@ -173,66 +133,36 @@ class ShortcutsPopup extends Container {
             });
 
             headerEntry.append(headerLabel);
-            content.append(headerEntry);
+            this.contentContainer.append(headerEntry);
 
-            // Add shortcuts for this category
             for (const item of config.shortcuts) {
                 const keyText = shortcutManager.formatShortcut(item.id);
-                if (!keyText) continue;  // Skip if shortcut not found
+                if (!keyText) continue;
 
-                const key = new Label({
-                    class: 'shortcut-key',
-                    text: keyText
-                });
-
-                const action = new Label({
-                    class: 'shortcut-action',
-                    text: localize(item.localeKey)
-                });
-
-                const entry = new Container({
-                    class: 'shortcut-entry'
-                });
-
+                const key = new Label({ class: 'shortcut-key', text: keyText });
+                const action = new Label({ class: 'shortcut-action', text: localize(item.localeKey) });
+                const entry = new Container({ class: 'shortcut-entry' });
                 entry.append(key);
                 entry.append(action);
-                content.append(entry);
+                this.contentContainer.append(entry);
             }
 
-            // Add hints for this category (non-shortcut display items)
             if (config.hints) {
                 for (const hint of config.hints) {
-                    const key = new Label({
-                        class: 'shortcut-key',
-                        text: hint.displayKey
-                    });
-
-                    const action = new Label({
-                        class: 'shortcut-action',
-                        text: localize(hint.localeKey)
-                    });
-
-                    const entry = new Container({
-                        class: 'shortcut-entry'
-                    });
-
+                    const key = new Label({ class: 'shortcut-key', text: hint.displayKey });
+                    const action = new Label({ class: 'shortcut-action', text: localize(hint.localeKey) });
+                    const entry = new Container({ class: 'shortcut-entry' });
                     entry.append(key);
                     entry.append(action);
-                    content.append(entry);
+                    this.contentContainer.append(entry);
                 }
             }
         }
-
-        dialog.append(header);
-        dialog.append(content);
-
-        this.append(dialog);
     }
 
     set hidden(value: boolean) {
         super.hidden = value;
         if (!value) {
-            // Take keyboard focus so shortcuts stop working
             this.dom.focus();
         }
     }

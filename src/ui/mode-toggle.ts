@@ -2,14 +2,10 @@ import { Container, Element, Label } from '@playcanvas/pcui';
 
 import { Events } from '../events';
 import { localize } from './localization';
+import { parseSvg } from './svg';
 import centersSvg from './svg/centers.svg';
 import ringsSvg from './svg/rings.svg';
 import { Tooltips } from './tooltips';
-
-const createSvg = (svgString: string) => {
-    const decodedStr = decodeURIComponent(svgString.substring('data:image/svg+xml,'.length));
-    return new DOMParser().parseFromString(decodedStr, 'image/svg+xml').documentElement;
-};
 
 class ModeToggle extends Container {
     constructor(events: Events, tooltips: Tooltips, args = {}) {
@@ -23,12 +19,12 @@ class ModeToggle extends Container {
 
         const centersIcon = new Element({
             id: 'centers-icon',
-            dom: createSvg(centersSvg)
+            dom: parseSvg(centersSvg)
         });
 
         const ringsIcon = new Element({
             id: 'rings-icon',
-            dom: createSvg(ringsSvg)
+            dom: parseSvg(ringsSvg)
         });
 
         const centersText = new Label({

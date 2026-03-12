@@ -1,22 +1,15 @@
-import { BooleanInput, Button, ColorPicker, Container, Element, Label, SelectInput, SliderInput, TextInput } from '@playcanvas/pcui';
+import { BooleanInput, Button, ColorPicker, Container, Label, SelectInput, SliderInput, TextInput } from '@playcanvas/pcui';
 
 import { Pose } from '../camera-poses';
+import { BaseDialog } from './base-dialog';
 import { localize } from './localization';
 import { Events } from '../events';
 import { ExportType, SceneExportOptions } from '../file-handler';
 import { AnimTrack, ExperienceSettings, defaultPostEffectSettings } from '../splat-serialize';
+import { createSvgElement } from './svg';
 import sceneExport from './svg/export.svg';
 
-const createSvg = (svgString: string, args = {}) => {
-    const decodedStr = decodeURIComponent(svgString.substring('data:image/svg+xml,'.length));
-    return new Element({
-        dom: new DOMParser().parseFromString(decodedStr, 'image/svg+xml').documentElement,
-        ...args
-    });
-};
-
 const removeKnownExtension = (filename: string) => {
-    // remove known extensions (ordered from longest to shortest for compound extensions)
     const knownExtensions = [
         '.compressed.ply',
         '.ksplat',
@@ -39,84 +32,46 @@ const removeKnownExtension = (filename: string) => {
     return filename;
 };
 
-class ExportPopup extends Container {
+class ExportPopup extends BaseDialog {
     show: (exportType: ExportType, splatNames: string[], showFilenameEdit: boolean) => Promise<null | SceneExportOptions>;
-    hide: () => void;
-    destroy: () => void;
 
     constructor(events: Events, args = {}) {
-        args = {
+        super({
+            ...args,
             id: 'export-popup',
-            hidden: true,
-            tabIndex: -1,
-            ...args
-        };
-
-        super(args);
-
-        // UI
-
-        const dialog = new Container({
-            id: 'dialog'
+            title: localize('popup.export.header'),
+            okText: localize('popup.export'),
+            cancelText: localize('popup.cancel')
         });
 
-        // header
-
-        const header = new Container({
-            id: 'header'
-        });
-
-        const headerText = new Label({
-            id: 'header',
-            text: localize('popup.export.header')
-        });
-
-        header.append(createSvg(sceneExport, {
-            id: 'icon'
-        }));
-
-        header.append(headerText);
-
-        // content
-
-        const content = new Container({ id: 'content' });
+        // header icon
+        this.headerContainer.prepend(createSvgElement(sceneExport, { class: 'ss-dialog-header-icon' }));
 
         // type
-
-        const viewerTypeRow = new Container({
-            class: 'row'
-        });
-
-        const viewerTypeLabel = new Label({
-            class: 'label',
-            text: localize('popup.export.type')
-        });
-
+        const viewerTypeLabel = new Label({ class: 'ss-dialog-row-label', text: localize('popup.export.type') });
         const viewerTypeSelect = new SelectInput({
-            class: 'select',
+            class: 'ss-dialog-row-control',
             defaultValue: 'html',
             options: [
                 { v: 'html', t: localize('popup.export.html') },
                 { v: 'zip', t: localize('popup.export.package') }
             ]
         });
-
+        const viewerTypeRow = new Container({ class: 'ss-dialog-row' });
         viewerTypeRow.append(viewerTypeLabel);
         viewerTypeRow.append(viewerTypeSelect);
 
-        // viewer: animation
-
-        const animationLabel = new Label({ class: 'label', text: localize('popup.export.animation') });
-        const animationToggle = new BooleanInput({ class: 'boolean', type: 'toggle', value: false });
-        const animationRow = new Container({ class: 'row' });
+        // animation
+        const animationLabel = new Label({ class: 'ss-dialog-row-label', text: localize('popup.export.animation') });
+        const animationToggle = new BooleanInput({ class: 'ss-dialog-row-boolean', type: 'toggle', value: false });
+        const animationRow = new Container({ class: 'ss-dialog-row' });
         animationRow.append(animationLabel);
         animationRow.append(animationToggle);
 
-        // viewer: loop mode
-
-        const loopLabel = new Label({ class: 'label', text: localize('popup.export.loop-mode') });
+        // loop mode
+        const loopLabel = new Label({ class: 'ss-dialog-row-label', text: localize('popup.export.loop-mode') });
         const loopSelect = new SelectInput({
-            class: 'select',
+            class: 'ss-dialog-row-control',
             defaultValue: 'repeat',
             options: [
                 { v: 'none', t: localize('popup.export.loop-mode.none') },
@@ -124,188 +79,80 @@ class ExportPopup extends Container {
                 { v: 'pingpong', t: localize('popup.export.loop-mode.pingpong') }
             ]
         });
-        const loopRow = new Container({ class: 'row' });
+        const loopRow = new Container({ class: 'ss-dialog-row' });
         loopRow.append(loopLabel);
         loopRow.append(loopSelect);
 
-        // viewer: clear color
-
-        const colorRow = new Container({
-            class: 'row'
-        });
-
-        const colorLabel = new Label({
-            class: 'label',
-            text: localize('popup.export.background-color')
-        });
-
-        const colorPicker = new ColorPicker({
-            class: 'color-picker',
-            value: [1, 1, 1, 1]
-        });
-
+        // clear color
+        const colorLabel = new Label({ class: 'ss-dialog-row-label', text: localize('popup.export.background-color') });
+        const colorPicker = new ColorPicker({ class: 'ss-dialog-row-control', value: [1, 1, 1, 1] });
+        const colorRow = new Container({ class: 'ss-dialog-row' });
         colorRow.append(colorLabel);
         colorRow.append(colorPicker);
 
-        // viewer: fov
-
-        const fovRow = new Container({
-            class: 'row'
-        });
-
-        const fovLabel = new Label({
-            class: 'label',
-            text: localize('popup.export.fov')
-        });
-
+        // fov
+        const fovLabel = new Label({ class: 'ss-dialog-row-label', text: localize('popup.export.fov') });
         const fovSlider = new SliderInput({
-            class: 'slider',
+            class: 'ss-dialog-row-control',
             min: 10,
             max: 120,
             precision: 0,
             value: 60
         });
-
+        const fovRow = new Container({ class: 'ss-dialog-row' });
         fovRow.append(fovLabel);
         fovRow.append(fovSlider);
 
         // compress
-
-        const compressRow = new Container({
-            class: 'row'
-        });
-
-        const compressLabel = new Label({
-            class: 'label',
-            text: localize('popup.export.compress-ply')
-        });
-
-        const compressBoolean = new BooleanInput({
-            class: 'boolean',
-            type: 'toggle'
-        });
-
+        const compressLabel = new Label({ class: 'ss-dialog-row-label', text: localize('popup.export.compress-ply') });
+        const compressBoolean = new BooleanInput({ class: 'ss-dialog-row-boolean', type: 'toggle' });
+        const compressRow = new Container({ class: 'ss-dialog-row' });
         compressRow.append(compressLabel);
         compressRow.append(compressBoolean);
 
         // spherical harmonic bands
-
-        const bandsRow = new Container({
-            class: 'row'
-        });
-
-        const bandsLabel = new Label({
-            class: 'label',
-            text: localize('popup.export.sh-bands')
-        });
-
+        const bandsLabel = new Label({ class: 'ss-dialog-row-label', text: localize('popup.export.sh-bands') });
         const bandsSlider = new SliderInput({
-            class: 'slider',
+            class: 'ss-dialog-row-control',
             min: 0,
             max: 3,
             precision: 0,
             value: 3
         });
-
+        const bandsRow = new Container({ class: 'ss-dialog-row' });
         bandsRow.append(bandsLabel);
         bandsRow.append(bandsSlider);
 
         // sog iterations
-
-        const iterationsRow = new Container({
-            class: 'row'
-        });
-
-        const iterationsLabel = new Label({
-            class: 'label',
-            text: localize('popup.export.iterations')
-        });
-
+        const iterationsLabel = new Label({ class: 'ss-dialog-row-label', text: localize('popup.export.iterations') });
         const iterationsSlider = new SliderInput({
-            class: 'slider',
+            class: 'ss-dialog-row-control',
             min: 1,
             max: 20,
             precision: 0,
             value: 10
         });
-
+        const iterationsRow = new Container({ class: 'ss-dialog-row' });
         iterationsRow.append(iterationsLabel);
         iterationsRow.append(iterationsSlider);
 
         // filename
-
-        const filenameRow = new Container({
-            class: 'row'
-        });
-
-        const filenameLabel = new Label({
-            class: 'label',
-            text: localize('popup.export.filename')
-        });
-
-        const filenameEntry = new TextInput({
-            class: 'text-input'
-        });
-
+        const filenameLabel = new Label({ class: 'ss-dialog-row-label', text: localize('popup.export.filename') });
+        const filenameEntry = new TextInput({ class: 'ss-dialog-row-control' });
+        const filenameRow = new Container({ class: 'ss-dialog-row' });
         filenameRow.append(filenameLabel);
         filenameRow.append(filenameEntry);
 
         // content
-
-        content.append(viewerTypeRow);
-        content.append(animationRow);
-        content.append(loopRow);
-        content.append(colorRow);
-        content.append(fovRow);
-        content.append(compressRow);
-        content.append(bandsRow);
-        content.append(iterationsRow);
-        content.append(filenameRow);
-
-        // footer
-
-        const footer = new Container({ id: 'footer' });
-
-        const cancelButton = new Button({
-            class: 'button',
-            text: localize('popup.cancel')
-        });
-
-        const exportButton = new Button({
-            class: 'button',
-            text: localize('popup.export')
-        });
-
-        footer.append(cancelButton);
-        footer.append(exportButton);
-
-        dialog.append(header);
-        dialog.append(content);
-        dialog.append(footer);
-
-        this.append(dialog);
-
-        // handlers
-
-        let onCancel: () => void;
-        let onExport: () => void;
-
-        cancelButton.on('click', () => onCancel());
-        exportButton.on('click', () => onExport());
-
-        const keydown = (e: KeyboardEvent) => {
-            switch (e.key) {
-                case 'Escape':
-                    onCancel();
-                    break;
-                case 'Enter':
-                    if (!e.shiftKey) onExport();
-                    break;
-                default:
-                    e.stopPropagation();
-                    break;
-            }
-        };
+        this.contentContainer.append(viewerTypeRow);
+        this.contentContainer.append(animationRow);
+        this.contentContainer.append(loopRow);
+        this.contentContainer.append(colorRow);
+        this.contentContainer.append(fovRow);
+        this.contentContainer.append(compressRow);
+        this.contentContainer.append(bandsRow);
+        this.contentContainer.append(iterationsRow);
+        this.contentContainer.append(filenameRow);
 
         const updateExtension = (ext: string) => {
             filenameEntry.value = removeKnownExtension(filenameEntry.value) + ext;
@@ -340,14 +187,9 @@ class ExportPopup extends Container {
             });
 
             bandsSlider.value = events.invoke('view.bands');
-
-            // ply
             compressBoolean.value = false;
-
-            // sog
             iterationsSlider.value = 10;
 
-            // filename
             filenameEntry.value = splatNames[0];
             switch (exportType) {
                 case 'ply':
@@ -364,16 +206,12 @@ class ExportPopup extends Container {
                     break;
             }
 
-            // viewer
             const bgClr = events.invoke('bgClr');
-
             animationToggle.value = hasPoses;
             animationToggle.enabled = hasPoses;
             loopSelect.value = 'repeat';
             loopSelect.enabled = hasPoses;
-
             colorPicker.value = [bgClr.r, bgClr.g, bgClr.b];
-
             fovSlider.value = events.invoke('camera.fov');
         };
 
@@ -387,21 +225,15 @@ class ExportPopup extends Container {
             .sort((a, b) => a.frame - b.frame);
 
             reset(exportType, splatNames, orderedPoses.length > 0);
-
-            // filename is only shown in safari where file picker is not supported
             filenameRow.hidden = !showFilenameEdit;
 
-            this.hidden = false;
-            this.dom.addEventListener('keydown', keydown);
-            this.dom.focus();
+            this.showDialog();
 
             const assemblePlyOptions = () : SceneExportOptions => {
                 return {
                     filename: filenameEntry.value,
                     splatIdx: 'all',
-                    serializeSettings: {
-                        maxSHBands: bandsSlider.value
-                    },
+                    serializeSettings: { maxSHBands: bandsSlider.value },
                     compressedPly: compressBoolean.value
                 };
             };
@@ -418,17 +250,13 @@ class ExportPopup extends Container {
                 return {
                     filename: filenameEntry.value,
                     splatIdx: 'all',
-                    serializeSettings: {
-                        maxSHBands: bandsSlider.value
-                    },
+                    serializeSettings: { maxSHBands: bandsSlider.value },
                     sogIterations: iterationsSlider.value
                 };
             };
 
             const assembleViewerOptions = () : SceneExportOptions => {
                 const fov = fovSlider.value;
-
-                // use current viewport as start pose
                 const pose = events.invoke('camera.getPose');
                 const p = pose?.position;
                 const t = pose?.target;
@@ -490,9 +318,7 @@ class ExportPopup extends Container {
                 return {
                     filename: filenameEntry.value,
                     splatIdx: 'all',
-                    serializeSettings: {
-                        maxSHBands: bandsSlider.value
-                    },
+                    serializeSettings: { maxSHBands: bandsSlider.value },
                     viewerExportSettings: {
                         type: viewerTypeSelect.value,
                         experienceSettings
@@ -501,39 +327,18 @@ class ExportPopup extends Container {
             };
 
             return new Promise<null | SceneExportOptions>((resolve) => {
-                onCancel = () => {
-                    resolve(null);
-                };
-
-                onExport = () => {
+                this.onCancel = () => resolve(null);
+                this.onOK = () => {
                     switch (exportType) {
-                        case 'ply':
-                            resolve(assemblePlyOptions());
-                            break;
-                        case 'splat':
-                            resolve(assembleSplatOptions());
-                            break;
-                        case 'sog':
-                            resolve(assembleSogOptions());
-                            break;
-                        case 'viewer':
-                            resolve(assembleViewerOptions());
-                            break;
+                        case 'ply': resolve(assemblePlyOptions()); break;
+                        case 'splat': resolve(assembleSplatOptions()); break;
+                        case 'sog': resolve(assembleSogOptions()); break;
+                        case 'viewer': resolve(assembleViewerOptions()); break;
                     }
                 };
             }).finally(() => {
-                this.dom.removeEventListener('keydown', keydown);
-                this.hide();
+                this.hideDialog();
             });
-        };
-
-        this.hide = () => {
-            this.hidden = true;
-        };
-
-        this.destroy = () => {
-            this.hide();
-            super.destroy();
         };
     }
 }
