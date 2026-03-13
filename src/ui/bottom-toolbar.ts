@@ -1,9 +1,7 @@
-import { Button, Container, Element } from '@playcanvas/pcui';
+import { Button, Container } from '@playcanvas/pcui';
 
 import { Events } from '../events';
-import { ShortcutManager } from '../shortcut-manager';
 import { localize } from './localization';
-import { parseSvg } from './svg';
 import redoSvg from './svg/redo.svg';
 import brushSvg from './svg/select-brush.svg';
 import eyedropperSvg from './svg/select-eyedropper.svg';
@@ -14,78 +12,32 @@ import polygonSvg from './svg/select-poly.svg';
 import sphereSvg from './svg/select-sphere.svg';
 import boxSvg from './svg/show-hide-splats.svg';
 import undoSvg from './svg/undo.svg';
+import { buildTooltipText, createToolbarButton, createToolbarSeparator, stopToolbarPointerEvents } from './toolbar-utils';
 import { Tooltips } from './tooltips';
-// import cropSvg from './svg/crop.svg';
 
 class BottomToolbar extends Container {
     constructor(events: Events, tooltips: Tooltips, args = {}) {
-        args = {
+        super({
             ...args,
             id: 'bottom-toolbar'
-        };
-
-        super(args);
-
-        this.dom.addEventListener('pointerdown', (event) => {
-            event.stopPropagation();
         });
 
-        const undo = new Button({
-            id: 'bottom-toolbar-undo',
-            class: 'bottom-toolbar-button',
-            enabled: false
-        });
+        stopToolbarPointerEvents(this.dom);
 
-        const redo = new Button({
-            id: 'bottom-toolbar-redo',
-            class: 'bottom-toolbar-button',
-            enabled: false
-        });
+        const undo = createToolbarButton(undoSvg, 'bottom-toolbar-button', 'bottom-toolbar-undo');
+        undo.enabled = false;
 
-        const picker = new Button({
-            id: 'bottom-toolbar-picker',
-            class: 'bottom-toolbar-tool'
-        });
+        const redo = createToolbarButton(redoSvg, 'bottom-toolbar-button', 'bottom-toolbar-redo');
+        redo.enabled = false;
 
-        const polygon = new Button({
-            id: 'bottom-toolbar-polygon',
-            class: 'bottom-toolbar-tool'
-        });
-
-        const brush = new Button({
-            id: 'bottom-toolbar-brush',
-            class: 'bottom-toolbar-tool'
-        });
-
-        const flood = new Button({
-            id: 'bottom-toolbar-flood',
-            class: 'bottom-toolbar-tool'
-        });
-
-        const lasso = new Button({
-            id: 'bottom-toolbar-lasso',
-            class: 'bottom-toolbar-tool'
-        });
-
-        const sphere = new Button({
-            id: 'bottom-toolbar-sphere',
-            class: 'bottom-toolbar-tool'
-        });
-
-        const box = new Button({
-            id: 'bottom-toolbar-box',
-            class: 'bottom-toolbar-tool'
-        });
-
-        const eyedropper = new Button({
-            id: 'bottom-toolbar-eyedropper',
-            class: 'bottom-toolbar-tool'
-        });
-
-        // const crop = new Button({
-        //     id: 'bottom-toolbar-crop',
-        //     class: ['bottom-toolbar-tool', 'disabled']
-        // });
+        const picker = createToolbarButton(pickerSvg, 'bottom-toolbar-tool', 'bottom-toolbar-picker');
+        const polygon = createToolbarButton(polygonSvg, 'bottom-toolbar-tool', 'bottom-toolbar-polygon');
+        const brush = createToolbarButton(brushSvg, 'bottom-toolbar-tool', 'bottom-toolbar-brush');
+        const flood = createToolbarButton(floodSvg, 'bottom-toolbar-tool', 'bottom-toolbar-flood');
+        const lasso = createToolbarButton(lassoSvg, 'bottom-toolbar-tool', 'bottom-toolbar-lasso');
+        const sphere = createToolbarButton(sphereSvg, 'bottom-toolbar-tool', 'bottom-toolbar-sphere');
+        const box = createToolbarButton(boxSvg, 'bottom-toolbar-tool', 'bottom-toolbar-box');
+        const eyedropper = createToolbarButton(eyedropperSvg, 'bottom-toolbar-tool', 'bottom-toolbar-eyedropper');
 
         const translate = new Button({
             id: 'bottom-toolbar-translate',
@@ -123,36 +75,25 @@ class BottomToolbar extends Container {
             icon: 'E189'
         });
 
-        undo.dom.appendChild(parseSvg(undoSvg));
-        redo.dom.appendChild(parseSvg(redoSvg));
-        picker.dom.appendChild(parseSvg(pickerSvg));
-        polygon.dom.appendChild(parseSvg(polygonSvg));
-        brush.dom.appendChild(parseSvg(brushSvg));
-        flood.dom.appendChild(parseSvg(floodSvg));
-        sphere.dom.appendChild(parseSvg(sphereSvg));
-        box.dom.appendChild(parseSvg(boxSvg));
-        lasso.dom.appendChild(parseSvg(lassoSvg));
-        eyedropper.dom.appendChild(parseSvg(eyedropperSvg));
-        // crop.dom.appendChild(parseSvg(cropSvg));
+        const sep = () => createToolbarSeparator('bottom-toolbar-separator');
 
         this.append(undo);
         this.append(redo);
-        this.append(new Element({ class: 'bottom-toolbar-separator' }));
+        this.append(sep());
         this.append(picker);
         this.append(lasso);
         this.append(polygon);
         this.append(brush);
         this.append(flood);
         this.append(eyedropper);
-        this.append(new Element({ class: 'bottom-toolbar-separator' }));
+        this.append(sep());
         this.append(sphere);
         this.append(box);
-        // this.append(crop);
-        this.append(new Element({ class: 'bottom-toolbar-separator' }));
+        this.append(sep());
         this.append(translate);
         this.append(rotate);
         this.append(scale);
-        this.append(new Element({ class: 'bottom-toolbar-separator' }));
+        this.append(sep());
         this.append(measure);
         this.append(coordSpace);
         this.append(origin);
@@ -204,36 +145,24 @@ class BottomToolbar extends Container {
             origin.dom.classList[o === 'boundCenter' ? 'add' : 'remove']('active');
         });
 
-        // Helper to compose localized tooltip text with shortcut
-        const shortcutManager: ShortcutManager = events.invoke('shortcutManager');
-        const tooltip = (localeKey: string, shortcutId?: string) => {
-            const text = localize(localeKey);
-            if (shortcutId) {
-                const shortcut = shortcutManager.formatShortcut(shortcutId);
-                if (shortcut) {
-                    return `${text} ( ${shortcut} )`;
-                }
-            }
-            return text;
-        };
+        const tip = (key: string, shortcut?: string) => buildTooltipText(events, key, shortcut);
 
-        // register tooltips
-        tooltips.register(undo, tooltip('tooltip.bottom-toolbar.undo', 'edit.undo'));
-        tooltips.register(redo, tooltip('tooltip.bottom-toolbar.redo', 'edit.redo'));
-        tooltips.register(picker, tooltip('tooltip.bottom-toolbar.rect', 'tool.rectSelection'));
-        tooltips.register(lasso, tooltip('tooltip.bottom-toolbar.lasso', 'tool.lassoSelection'));
-        tooltips.register(polygon, tooltip('tooltip.bottom-toolbar.polygon', 'tool.polygonSelection'));
-        tooltips.register(brush, tooltip('tooltip.bottom-toolbar.brush', 'tool.brushSelection'));
-        tooltips.register(flood, tooltip('tooltip.bottom-toolbar.flood', 'tool.floodSelection'));
-        tooltips.register(sphere, tooltip('tooltip.bottom-toolbar.sphere'));
-        tooltips.register(box, tooltip('tooltip.bottom-toolbar.box'));
-        tooltips.register(translate, tooltip('tooltip.bottom-toolbar.translate', 'tool.move'));
-        tooltips.register(rotate, tooltip('tooltip.bottom-toolbar.rotate', 'tool.rotate'));
-        tooltips.register(scale, tooltip('tooltip.bottom-toolbar.scale', 'tool.scale'));
-        tooltips.register(measure, tooltip('tooltip.bottom-toolbar.measure'));
-        tooltips.register(coordSpace, tooltip('tooltip.bottom-toolbar.local-space', 'tool.toggleCoordSpace'));
-        tooltips.register(origin, tooltip('tooltip.bottom-toolbar.bound-center'));
-        tooltips.register(eyedropper, tooltip('tooltip.bottom-toolbar.eyedropper', 'tool.eyedropperSelection'));
+        tooltips.register(undo, tip('tooltip.bottom-toolbar.undo', 'edit.undo'));
+        tooltips.register(redo, tip('tooltip.bottom-toolbar.redo', 'edit.redo'));
+        tooltips.register(picker, tip('tooltip.bottom-toolbar.rect', 'tool.rectSelection'));
+        tooltips.register(lasso, tip('tooltip.bottom-toolbar.lasso', 'tool.lassoSelection'));
+        tooltips.register(polygon, tip('tooltip.bottom-toolbar.polygon', 'tool.polygonSelection'));
+        tooltips.register(brush, tip('tooltip.bottom-toolbar.brush', 'tool.brushSelection'));
+        tooltips.register(flood, tip('tooltip.bottom-toolbar.flood', 'tool.floodSelection'));
+        tooltips.register(sphere, tip('tooltip.bottom-toolbar.sphere'));
+        tooltips.register(box, tip('tooltip.bottom-toolbar.box'));
+        tooltips.register(translate, tip('tooltip.bottom-toolbar.translate', 'tool.move'));
+        tooltips.register(rotate, tip('tooltip.bottom-toolbar.rotate', 'tool.rotate'));
+        tooltips.register(scale, tip('tooltip.bottom-toolbar.scale', 'tool.scale'));
+        tooltips.register(measure, tip('tooltip.bottom-toolbar.measure'));
+        tooltips.register(coordSpace, tip('tooltip.bottom-toolbar.local-space', 'tool.toggleCoordSpace'));
+        tooltips.register(origin, tip('tooltip.bottom-toolbar.bound-center'));
+        tooltips.register(eyedropper, tip('tooltip.bottom-toolbar.eyedropper', 'tool.eyedropperSelection'));
     }
 }
 

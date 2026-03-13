@@ -105,6 +105,50 @@
     flex-grow: 0;
 }
 
+// Panel row: label + control layout
+@mixin panel-row {
+    display: flex;
+    flex-direction: row;
+    padding: $panel-header-padding;
+    height: $panel-row-height;
+}
+
+// Label inside a panel row
+@mixin panel-row-label {
+    flex-grow: 1;
+}
+
+// Slider inside a panel row
+@mixin panel-row-slider {
+    margin: 0;
+
+    & > .pcui-slider-container {
+        & > .pcui-slider-bar {
+            & > .pcui-slider-handle {
+                background-color: $clr-default;
+                border-radius: $radius-sm + 1px;
+            }
+        }
+    }
+}
+
+// Boolean toggle inside a panel row
+@mixin panel-row-toggle {
+    background-color: $bcg-dark;
+
+    &::after {
+        background-color: $clr-default;
+    }
+
+    &.pcui-boolean-input-ticked {
+        background-color: $clr-hilight;
+
+        &::after {
+            background-color: $clr-active;
+        }
+    }
+}
+
 // Shared toolbar item base (button, tool, toggle)
 @mixin toolbar-item {
     width: $toolbar-item-size;

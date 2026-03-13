@@ -1,44 +1,34 @@
-@use 'colors.scss' as *;
+@use 'colors' as *;
+@use 'mixins' as *;
+@use 'tokens' as *;
 
 #color-panel {
     top: 50%;
     transform: translate(0, -50%);
     right: 102px;
-    width: 320px;
+    width: $panel-width;
     flex-direction: column;
 
     &:not(.pcui-hidden) {
         display: flex;
     }
 
-    & > .color-panel-row {
-        display: flex;
-        flex-direction: row;
-        padding: 2px;
-        height: 28px;
+    & > .ss-panel-row {
+        @include panel-row;
 
-        & > .color-panel-row-label {
-            flex-grow: 1;
+        & > .ss-panel-row-label {
+            @include panel-row-label;
         }
 
         & > .color-panel-row-picker {
-            margin: 0px 0px;
-            padding: 0px;
+            margin: 0;
+            padding: 0;
             height: 24px;
         }
 
-        & > .color-panel-row-slider {
+        & > .ss-panel-row-slider {
+            @include panel-row-slider;
             width: 220px;
-            margin: 0px;
-
-            & > .pcui-slider-container {
-                & > .pcui-slider-bar {
-                    & > .pcui-slider-handle {
-                        background-color: $clr-default;
-                        border-radius: 3px;
-                    }
-                }
-            }
         }
     }
 

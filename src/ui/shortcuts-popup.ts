@@ -158,17 +158,16 @@ class ShortcutsPopup extends BaseDialog {
                 }
             }
         }
+
+        this.onCancel = () => this.hide();
     }
 
-    set hidden(value: boolean) {
-        super.hidden = value;
-        if (!value) {
-            this.dom.focus();
-        }
+    show() {
+        this.showDialog();
     }
 
-    get hidden(): boolean {
-        return super.hidden;
+    hide() {
+        this.hideDialog();
     }
 }
 

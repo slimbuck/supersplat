@@ -1,53 +1,31 @@
-@use 'colors.scss' as *;
+@use 'colors' as *;
+@use 'mixins' as *;
+@use 'tokens' as *;
 
 #view-panel {
     top: 50%;
     transform: translate(0, -50%);
     right: 102px;
-    width: 320px;
+    width: $panel-width;
     flex-direction: column;
 
     &:not(.pcui-hidden) {
         display: flex;
     }
 
-    & > .view-panel-row {
-        display: flex;
-        flex-direction: row;
-        padding: 2px;
-        height: 28px;
+    & > .ss-panel-row {
+        @include panel-row;
 
-        & > .view-panel-row-label {
-            flex-grow: 1;
+        & > .ss-panel-row-label {
+            @include panel-row-label;
         }
 
-        & > .view-panel-row-toggle {
-            background-color: $bcg-dark;
-
-            &::after {
-                background-color: $clr-default;
-            }
-
-            &.pcui-boolean-input-ticked {
-                background-color: $clr-hilight;
-
-                &::after {
-                    background-color: $clr-active;
-                }
-            }
+        & > .ss-panel-row-toggle {
+            @include panel-row-toggle;
         }
 
-        & > .view-panel-row-slider {
-            margin: 0px;
-
-            & > .pcui-slider-container {
-                & > .pcui-slider-bar {
-                    & > .pcui-slider-handle {
-                        background-color: $clr-default;
-                        border-radius: 3px;
-                    }
-                }
-            }
+        & > .ss-panel-row-slider {
+            @include panel-row-slider;
         }
 
         & > .view-panel-row-pickers {
@@ -58,8 +36,8 @@
             justify-content: space-between;
 
             & > .view-panel-row-picker {
-                margin: 0px 0px;
-                padding: 0px;
+                margin: 0;
+                padding: 0;
                 height: 24px;
             }
         }

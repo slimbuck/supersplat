@@ -71,9 +71,15 @@ class AboutPopup extends BaseDialog {
         this.contentContainer.append(appInfo);
         this.contentContainer.append(depsContainer);
 
-        this.on('show', () => {
-            this.dom.focus();
-        });
+        this.onCancel = () => this.hide();
+    }
+
+    show() {
+        this.showDialog();
+    }
+
+    hide() {
+        this.hideDialog();
     }
 }
 

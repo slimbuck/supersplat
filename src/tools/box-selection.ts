@@ -1,10 +1,11 @@
-import { Button, Container, NumericInput } from '@playcanvas/pcui';
+import { Container, NumericInput } from '@playcanvas/pcui';
 import { TranslateGizmo, Vec3 } from 'playcanvas';
 
 import { BoxShape } from '../box-shape';
 import { Events } from '../events';
 import { Scene } from '../scene';
 import { Splat } from '../splat';
+import { ContextToolbar } from '../ui/context-toolbar';
 
 class BoxSelection {
     activate: () => void;
@@ -26,18 +27,14 @@ class BoxSelection {
         });
 
         // ui
-        const selectToolbar = new Container({
-            class: 'select-toolbar',
-            hidden: true
-        });
+        const selectToolbar = new ContextToolbar(canvasContainer);
 
-        selectToolbar.dom.addEventListener('pointerdown', (e) => {
-            e.stopPropagation();
-        });
+        const apply = (op: 'set' | 'add' | 'remove') => {
+            const p = box.pivot.getPosition();
+            events.fire('select.byBox', op, [p.x, p.y, p.z, box.lenX, box.lenY, box.lenZ]);
+        };
 
-        const setButton = new Button({ text: 'Set', class: 'select-toolbar-button' });
-        const addButton = new Button({ text: 'Add', class: 'select-toolbar-button' });
-        const removeButton = new Button({ text: 'Remove', class: 'select-toolbar-button' });
+        const { set: setButton, add: addButton, remove: removeButton } = ContextToolbar.createSelectionButtons(apply);
 
         const lenX = new NumericInput({
             precision: 2,
@@ -70,25 +67,6 @@ class BoxSelection {
         selectToolbar.append(lenY);
         selectToolbar.append(lenZ);
 
-        canvasContainer.append(selectToolbar);
-
-        const apply = (op: 'set' | 'add' | 'remove') => {
-            const p = box.pivot.getPosition();
-            events.fire('select.byBox', op, [p.x, p.y, p.z, box.lenX, box.lenY, box.lenZ]);
-        };
-
-        setButton.dom.addEventListener('pointerdown', (e) => {
-            e.stopPropagation();
-            apply('set');
-        });
-        addButton.dom.addEventListener('pointerdown', (e) => {
-            e.stopPropagation();
-            apply('add');
-        });
-        removeButton.dom.addEventListener('pointerdown', (e) => {
-            e.stopPropagation();
-            apply('remove');
-        });
         lenX.on('change', () => {
             box.lenX = lenX.value;
         });
@@ -122,11 +100,11 @@ class BoxSelection {
             this.active = true;
             scene.add(box);
             gizmo.attach([box.pivot]);
-            selectToolbar.hidden = false;
+            selectToolbar.show();
         };
 
         this.deactivate = () => {
-            selectToolbar.hidden = true;
+            selectToolbar.hide();
             gizmo.detach();
             scene.remove(box);
             this.active = false;

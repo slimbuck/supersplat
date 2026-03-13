@@ -1,56 +1,26 @@
-import { BooleanInput, ColorPicker, Container, Label, SelectInput, SliderInput } from '@playcanvas/pcui';
+import { BooleanInput, ColorPicker, Container, SelectInput, SliderInput } from '@playcanvas/pcui';
 import { Color } from 'playcanvas';
 
 import { Events } from '../events';
 import { ShortcutManager } from '../shortcut-manager';
+import { BasePanel } from './base-panel';
 import { localize } from './localization';
+import { createRow } from './row';
 import { Tooltips } from './tooltips';
 
-class ViewPanel extends Container {
+class ViewPanel extends BasePanel {
     constructor(events: Events, tooltips: Tooltips, args = {}) {
-        args = {
+        super(events, {
             ...args,
             id: 'view-panel',
-            class: 'panel',
-            hidden: true
-        };
-
-        super(args);
-
-        // stop pointer events bubbling
-        ['pointerdown', 'pointerup', 'pointermove', 'wheel', 'dblclick'].forEach((eventName) => {
-            this.dom.addEventListener(eventName, (event: Event) => event.stopPropagation());
+            hidden: true,
+            icon: '\uE403',
+            label: localize('panel.view-options'),
+            panelName: 'viewPanel',
+            excludes: 'colorPanel'
         });
-
-        // header
-
-        const header = new Container({
-            class: 'panel-header'
-        });
-
-        const icon = new Label({
-            text: '\uE403',
-            class: 'panel-header-icon'
-        });
-
-        const label = new Label({
-            text: localize('panel.view-options'),
-            class: 'panel-header-label'
-        });
-
-        header.append(icon);
-        header.append(label);
 
         // colors
-
-        const clrRow = new Container({
-            class: 'view-panel-row'
-        });
-
-        const clrLabel = new Label({
-            text: localize('panel.view-options.colors'),
-            class: 'view-panel-row-label'
-        });
 
         const clrPickers = new Container({
             class: 'view-panel-row-pickers'
@@ -105,19 +75,12 @@ class ViewPanel extends Container {
         clrPickers.append(unselectedClrPicker);
         clrPickers.append(lockedClrPicker);
 
-        clrRow.append(clrLabel);
-        clrRow.append(clrPickers);
+        const clrRow = createRow({
+            labelText: localize('panel.view-options.colors'),
+            control: clrPickers
+        });
 
         // tonemapping
-
-        const tonemappingRow = new Container({
-            class: 'view-panel-row'
-        });
-
-        const tonemappingLabel = new Label({
-            text: localize('panel.view-options.tonemapping'),
-            class: 'view-panel-row-label'
-        });
 
         const tonemappingSelection = new SelectInput({
             class: 'view-panel-row-select',
@@ -132,196 +95,136 @@ class ViewPanel extends Container {
             ]
         });
 
-        tonemappingRow.append(tonemappingLabel);
-        tonemappingRow.append(tonemappingSelection);
+        const tonemappingRow = createRow({
+            labelText: localize('panel.view-options.tonemapping'),
+            control: tonemappingSelection
+        });
 
         // camera fov
 
-        const fovRow = new Container({
-            class: 'view-panel-row'
-        });
-
-        const fovLabel = new Label({
-            text: localize('panel.view-options.fov'),
-            class: 'view-panel-row-label'
-        });
-
         const fovSlider = new SliderInput({
-            class: 'view-panel-row-slider',
+            class: 'ss-panel-row-slider',
             min: 10,
             max: 120,
             precision: 1,
             value: 60
         });
 
-        fovRow.append(fovLabel);
-        fovRow.append(fovSlider);
+        const fovRow = createRow({
+            labelText: localize('panel.view-options.fov'),
+            control: fovSlider
+        });
 
         // sh bands
-        const shBandsRow = new Container({
-            class: 'view-panel-row'
-        });
-
-        const shBandsLabel = new Label({
-            text: localize('panel.view-options.sh-bands'),
-            class: 'view-panel-row-label'
-        });
 
         const shBandsSlider = new SliderInput({
-            class: 'view-panel-row-slider',
+            class: 'ss-panel-row-slider',
             min: 0,
             max: 3,
             precision: 0,
             value: 3
         });
 
-        shBandsRow.append(shBandsLabel);
-        shBandsRow.append(shBandsSlider);
+        const shBandsRow = createRow({
+            labelText: localize('panel.view-options.sh-bands'),
+            control: shBandsSlider
+        });
 
         // camera fly speed
 
-        const cameraFlySpeedRow = new Container({
-            class: 'view-panel-row'
-        });
-
-        const cameraFlySpeedLabel = new Label({
-            text: localize('panel.view-options.fly-speed'),
-            class: 'view-panel-row-label'
-        });
-
         const cameraFlySpeedSlider = new SliderInput({
-            class: 'view-panel-row-slider',
+            class: 'ss-panel-row-slider',
             min: 0.1,
             max: 30,
             precision: 1,
             value: 1
         });
 
-        cameraFlySpeedRow.append(cameraFlySpeedLabel);
-        cameraFlySpeedRow.append(cameraFlySpeedSlider);
+        const cameraFlySpeedRow = createRow({
+            labelText: localize('panel.view-options.fly-speed'),
+            control: cameraFlySpeedSlider
+        });
 
         // centers size
 
-        const centersSizeRow = new Container({
-            class: 'view-panel-row'
-        });
-
-        const centersSizeLabel = new Label({
-            text: localize('panel.view-options.centers-size'),
-            class: 'view-panel-row-label'
-        });
-
         const centersSizeSlider = new SliderInput({
-            class: 'view-panel-row-slider',
+            class: 'ss-panel-row-slider',
             min: 0,
             max: 10,
             precision: 1,
             value: 2
         });
 
-        centersSizeRow.append(centersSizeLabel);
-        centersSizeRow.append(centersSizeSlider);
+        const centersSizeRow = createRow({
+            labelText: localize('panel.view-options.centers-size'),
+            control: centersSizeSlider
+        });
 
         // centers gaussian color
-        const centersColorRow = new Container({
-            class: 'view-panel-row'
-        });
-
-        const centersColorLabel = new Label({
-            text: localize('panel.view-options.centers-gaussian-color'),
-            class: 'view-panel-row-label'
-        });
 
         const centersColorToggle = new BooleanInput({
             type: 'toggle',
-            class: 'view-panel-row-toggle',
+            class: 'ss-panel-row-toggle',
             value: false
         });
 
-        centersColorRow.append(centersColorLabel);
-        centersColorRow.append(centersColorToggle);
+        const centersColorRow = createRow({
+            labelText: localize('panel.view-options.centers-gaussian-color'),
+            control: centersColorToggle
+        });
 
         // outline selection
 
-        const outlineSelectionRow = new Container({
-            class: 'view-panel-row'
-        });
-
-        const outlineSelectionLabel = new Label({
-            text: localize('panel.view-options.outline-selection'),
-            class: 'view-panel-row-label'
-        });
-
         const outlineSelectionToggle = new BooleanInput({
             type: 'toggle',
-            class: 'view-panel-row-toggle',
+            class: 'ss-panel-row-toggle',
             value: false
         });
 
-        outlineSelectionRow.append(outlineSelectionLabel);
-        outlineSelectionRow.append(outlineSelectionToggle);
+        const outlineSelectionRow = createRow({
+            labelText: localize('panel.view-options.outline-selection'),
+            control: outlineSelectionToggle
+        });
 
         // show grid
 
-        const showGridRow = new Container({
-            class: 'view-panel-row'
-        });
-
-        const showGridLabel = new Label({
-            text: localize('panel.view-options.show-grid'),
-            class: 'view-panel-row-label'
-        });
-
         const showGridToggle = new BooleanInput({
             type: 'toggle',
-            class: 'view-panel-row-toggle',
+            class: 'ss-panel-row-toggle',
             value: true
         });
 
-        showGridRow.append(showGridLabel);
-        showGridRow.append(showGridToggle);
+        const showGridRow = createRow({
+            labelText: localize('panel.view-options.show-grid'),
+            control: showGridToggle
+        });
 
         // show bound
 
-        const showBoundRow = new Container({
-            class: 'view-panel-row'
-        });
-
-        const showBoundLabel = new Label({
-            text: localize('panel.view-options.show-bound'),
-            class: 'view-panel-row-label'
-        });
-
         const showBoundToggle = new BooleanInput({
             type: 'toggle',
-            class: 'view-panel-row-toggle',
+            class: 'ss-panel-row-toggle',
             value: true
         });
 
-        showBoundRow.append(showBoundLabel);
-        showBoundRow.append(showBoundToggle);
+        const showBoundRow = createRow({
+            labelText: localize('panel.view-options.show-bound'),
+            control: showBoundToggle
+        });
 
         // show camera poses
 
-        const showCameraPosesRow = new Container({
-            class: 'view-panel-row'
-        });
-
-        const showCameraPosesLabel = new Label({
-            text: localize('panel.view-options.show-camera-poses'),
-            class: 'view-panel-row-label'
-        });
-
         const showCameraPosesToggle = new BooleanInput({
             type: 'toggle',
-            class: 'view-panel-row-toggle',
+            class: 'ss-panel-row-toggle',
             value: false
         });
 
-        showCameraPosesRow.append(showCameraPosesLabel);
-        showCameraPosesRow.append(showCameraPosesToggle);
+        const showCameraPosesRow = createRow({
+            labelText: localize('panel.view-options.show-camera-poses'),
+            control: showCameraPosesToggle
+        });
 
-        this.append(header);
         this.append(clrRow);
         this.append(tonemappingRow);
         this.append(fovRow);
@@ -333,33 +236,6 @@ class ViewPanel extends Container {
         this.append(showGridRow);
         this.append(showBoundRow);
         this.append(showCameraPosesRow);
-
-        // handle panel visibility
-
-        const setVisible = (visible: boolean) => {
-            if (visible === this.hidden) {
-                this.hidden = !visible;
-                events.fire('viewPanel.visible', visible);
-            }
-        };
-
-        events.function('viewPanel.visible', () => {
-            return !this.hidden;
-        });
-
-        events.on('viewPanel.setVisible', (visible: boolean) => {
-            setVisible(visible);
-        });
-
-        events.on('viewPanel.toggleVisible', () => {
-            setVisible(this.hidden);
-        });
-
-        events.on('colorPanel.visible', (visible: boolean) => {
-            if (visible) {
-                setVisible(false);
-            }
-        });
 
         // sh bands
 
@@ -483,7 +359,7 @@ class ViewPanel extends Container {
         // tooltips
         const shortcutManager: ShortcutManager = events.invoke('shortcutManager');
         const shortcut = shortcutManager.formatShortcut('grid.toggleVisible');
-        tooltips.register(showGridLabel, `${localize('panel.view-options.show-grid')} ( ${shortcut} )`, 'left');
+        tooltips.register(showGridRow, `${localize('panel.view-options.show-grid')} ( ${shortcut} )`, 'left');
         tooltips.register(bgClrPicker, localize('panel.view-options.background-color'), 'left');
         tooltips.register(selectedClrPicker, localize('panel.view-options.selected-color'), 'top');
         tooltips.register(unselectedClrPicker, localize('panel.view-options.unselected-color'), 'top');

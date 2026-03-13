@@ -1,17 +1,18 @@
-@use 'colors.scss' as *;
+@use 'colors' as *;
+@use 'tokens' as *;
 
 #scene-panel {
     top: 102px;
     left: 24px;
-    width: 320px;
+    width: $panel-width;
 }
 
 .collapsed #scene-panel {
     display: none;
 }
 
-.panel-header-button.active,
-.panel-header-button.active:hover {
+.ss-panel-header-button.active,
+.ss-panel-header-button.active:hover {
     background-color: $clr-hilight;
 
     svg {

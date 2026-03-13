@@ -6,6 +6,7 @@ import { Events } from '../events';
 import { Scene } from '../scene';
 import { Splat } from '../splat';
 import { Transform } from '../transform';
+import { ContextToolbar } from '../ui/context-toolbar';
 import { localize } from '../ui/localization';
 
 const mat = new Mat4();
@@ -81,18 +82,10 @@ class MeasureTool {
         });
         let suppressUI = 0;
 
-        const selectToolbar = new Container({
-            class: 'select-toolbar',
-            hidden: true
-        });
-
-        selectToolbar.dom.addEventListener('pointerdown', (e) => {
-            e.stopPropagation();
-        });
+        const selectToolbar = new ContextToolbar(canvasContainer);
 
         selectToolbar.append(lengthLabel);
         selectToolbar.append(lengthInput);
-        canvasContainer.append(selectToolbar);
 
         const gizmo = new TranslateGizmo(scene.camera.camera, scene.gizmoLayer);
         const entity = new Entity('measureGizmoPivot');
@@ -388,7 +381,7 @@ class MeasureTool {
             canvasContainer.dom.addEventListener('pointerdown', pointerdown);
             canvasContainer.dom.addEventListener('pointermove', pointermove);
             canvasContainer.dom.addEventListener('pointerup', pointerup, true);
-            selectToolbar.hidden = false;
+            selectToolbar.show();
             parent.style.display = 'block';
             parent.classList.add('noevents');
             svg.classList.remove('hidden');
@@ -402,7 +395,7 @@ class MeasureTool {
             canvasContainer.dom.removeEventListener('pointerdown', pointerdown);
             canvasContainer.dom.removeEventListener('pointermove', pointermove);
             canvasContainer.dom.removeEventListener('pointerup', pointerup);
-            selectToolbar.hidden = true;
+            selectToolbar.hide();
             parent.style.display = 'none';
             parent.classList.remove('noevents');
             svg.classList.add('hidden');

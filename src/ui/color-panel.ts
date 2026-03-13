@@ -1,13 +1,14 @@
 import { ColorPicker, Container, Label, SliderInput } from '@playcanvas/pcui';
 import { Color } from 'playcanvas';
 
-import { Events } from '../events';
-import { localize } from './localization';
-import { Tooltips } from './tooltips';
 import { SetSplatColorAdjustmentOp } from '../edit-ops';
+import { Events } from '../events';
 import { Splat } from '../splat';
+import { BasePanel } from './base-panel';
+import { localize } from './localization';
+import { createRow } from './row';
+import { Tooltips } from './tooltips';
 
-// pcui slider doesn't include start and end events
 class MyFancySliderInput extends SliderInput {
     _onSlideStart(pageX: number) {
         super._onSlideStart(pageX);
@@ -20,191 +21,119 @@ class MyFancySliderInput extends SliderInput {
     }
 }
 
-class ColorPanel extends Container {
+class ColorPanel extends BasePanel {
     constructor(events: Events, tooltips: Tooltips, args = {}) {
-        args = {
+        super(events, {
             ...args,
             id: 'color-panel',
-            class: 'panel',
-            hidden: true
-        };
-
-        super(args);
-
-        // stop pointer events bubbling
-        ['pointerdown', 'pointerup', 'pointermove', 'wheel', 'dblclick'].forEach((eventName) => {
-            this.dom.addEventListener(eventName, (event: Event) => event.stopPropagation());
+            hidden: true,
+            icon: '\uE146',
+            label: localize('panel.colors'),
+            panelName: 'colorPanel',
+            excludes: 'viewPanel'
         });
-
-        // header
-
-        const header = new Container({
-            class: 'panel-header'
-        });
-
-        const icon = new Label({
-            class: 'panel-header-icon',
-            text: '\uE146'
-        });
-
-        const label = new Label({
-            class: 'panel-header-label',
-            text: localize('panel.colors')
-        });
-
-        header.append(icon);
-        header.append(label);
 
         // tint
-
-        const tintRow = new Container({
-            class: 'color-panel-row'
-        });
-
-        const tintLabel = new Label({
-            text: localize('panel.colors.tint'),
-            class: 'color-panel-row-label'
-        });
 
         const tintPicker = new ColorPicker({
             class: 'color-panel-row-picker',
             value: [1, 1, 1]
         });
 
-        tintRow.append(tintLabel);
-        tintRow.append(tintPicker);
+        const tintRow = createRow({
+            labelText: localize('panel.colors.tint'),
+            control: tintPicker
+        });
 
         // temperature
 
-        const temperatureRow = new Container({
-            class: 'color-panel-row'
-        });
-
-        const temperatureLabel = new Label({
-            text: localize('panel.colors.temperature'),
-            class: 'color-panel-row-label'
-        });
-
         const temperatureSlider = new MyFancySliderInput({
-            class: 'color-panel-row-slider',
+            class: 'ss-panel-row-slider',
             min: -0.5,
             max: 0.5,
             step: 0.005,
             value: 0
         });
 
-        temperatureRow.append(temperatureLabel);
-        temperatureRow.append(temperatureSlider);
+        const temperatureRow = createRow({
+            labelText: localize('panel.colors.temperature'),
+            control: temperatureSlider
+        });
 
         // saturation
 
-        const saturationRow = new Container({
-            class: 'color-panel-row'
-        });
-
-        const saturationLabel = new Label({
-            text: localize('panel.colors.saturation'),
-            class: 'color-panel-row-label'
-        });
-
         const saturationSlider = new MyFancySliderInput({
-            class: 'color-panel-row-slider',
+            class: 'ss-panel-row-slider',
             min: 0,
             max: 2,
             step: 0.1,
             value: 1
         });
 
-        saturationRow.append(saturationLabel);
-        saturationRow.append(saturationSlider);
+        const saturationRow = createRow({
+            labelText: localize('panel.colors.saturation'),
+            control: saturationSlider
+        });
 
         // brightness
 
-        const brightnessRow = new Container({
-            class: 'color-panel-row'
-        });
-
-        const brightnessLabel = new Label({
-            text: localize('panel.colors.brightness'),
-            class: 'color-panel-row-label'
-        });
-
         const brightnessSlider = new MyFancySliderInput({
-            class: 'color-panel-row-slider',
+            class: 'ss-panel-row-slider',
             min: -1,
             max: 1,
             step: 0.1,
             value: 1
         });
 
-        brightnessRow.append(brightnessLabel);
-        brightnessRow.append(brightnessSlider);
+        const brightnessRow = createRow({
+            labelText: localize('panel.colors.brightness'),
+            control: brightnessSlider
+        });
 
         // black point
 
-        const blackPointRow = new Container({
-            class: 'color-panel-row'
-        });
-
-        const blackPointLabel = new Label({
-            text: localize('panel.colors.black-point'),
-            class: 'color-panel-row-label'
-        });
-
         const blackPointSlider = new MyFancySliderInput({
-            class: 'color-panel-row-slider',
+            class: 'ss-panel-row-slider',
             min: 0,
             max: 1,
             step: 0.01,
             value: 0
         });
 
-        blackPointRow.append(blackPointLabel);
-        blackPointRow.append(blackPointSlider);
+        const blackPointRow = createRow({
+            labelText: localize('panel.colors.black-point'),
+            control: blackPointSlider
+        });
 
         // white point
 
-        const whitePointRow = new Container({
-            class: 'color-panel-row'
-        });
-
-        const whitePointLabel = new Label({
-            text: localize('panel.colors.white-point'),
-            class: 'color-panel-row-label'
-        });
-
         const whitePointSlider = new MyFancySliderInput({
-            class: 'color-panel-row-slider',
+            class: 'ss-panel-row-slider',
             min: 0,
             max: 1,
             step: 0.01,
             value: 1
         });
 
-        whitePointRow.append(whitePointLabel);
-        whitePointRow.append(whitePointSlider);
+        const whitePointRow = createRow({
+            labelText: localize('panel.colors.white-point'),
+            control: whitePointSlider
+        });
 
         // transparency
 
-        const transparencyRow = new Container({
-            class: 'color-panel-row'
-        });
-
-        const transparencyLabel = new Label({
-            text: localize('panel.colors.transparency'),
-            class: 'color-panel-row-label'
-        });
-
         const transparencySlider = new MyFancySliderInput({
-            class: 'color-panel-row-slider',
+            class: 'ss-panel-row-slider',
             min: -6,
             max: 6,
             step: 0.01,
             value: 1
         });
 
-        transparencyRow.append(transparencyLabel);
-        transparencyRow.append(transparencySlider);
+        const transparencyRow = createRow({
+            labelText: localize('panel.colors.transparency'),
+            control: transparencySlider
+        });
 
         // control row
 
@@ -213,15 +142,14 @@ class ColorPanel extends Container {
         });
 
         const reset = new Label({
-            class: 'panel-header-button',
+            class: 'ss-panel-header-button',
             text: '\uE304'
         });
 
-        controlRow.append(new Label({ class: 'panel-header-spacer' }));
+        controlRow.append(new Label({ class: 'ss-panel-header-spacer' }));
         controlRow.append(reset);
-        controlRow.append(new Label({ class: 'panel-header-spacer' }));
+        controlRow.append(new Label({ class: 'ss-panel-header-spacer' }));
 
-        this.append(header);
         this.append(tintRow);
         this.append(temperatureRow);
         this.append(saturationRow);
@@ -229,7 +157,7 @@ class ColorPanel extends Container {
         this.append(blackPointRow);
         this.append(whitePointRow);
         this.append(transparencyRow);
-        this.append(new Label({ class: 'panel-header-spacer' }));
+        this.append(new Label({ class: 'ss-panel-header-spacer' }));
         this.append(controlRow);
 
         // handle ui updates
@@ -407,33 +335,6 @@ class ColorPanel extends Container {
         events.on('splat.transparency', updateUIFromState);
 
         tooltips.register(reset, localize('panel.colors.reset'), 'bottom');
-
-        // handle panel visibility
-
-        const setVisible = (visible: boolean) => {
-            if (visible === this.hidden) {
-                this.hidden = !visible;
-                events.fire('colorPanel.visible', visible);
-            }
-        };
-
-        events.function('colorPanel.visible', () => {
-            return !this.hidden;
-        });
-
-        events.on('colorPanel.setVisible', (visible: boolean) => {
-            setVisible(visible);
-        });
-
-        events.on('colorPanel.toggleVisible', () => {
-            setVisible(this.hidden);
-        });
-
-        events.on('viewPanel.visible', (visible: boolean) => {
-            if (visible) {
-                setVisible(false);
-            }
-        });
     }
 }
 

@@ -1,6 +1,7 @@
 import { Container, NumericInput } from '@playcanvas/pcui';
 
 import { Events } from '../events';
+import { ContextToolbar } from '../ui/context-toolbar';
 
 type PointerOp = 'set' | 'add' | 'remove';
 
@@ -16,14 +17,7 @@ class EyedropperSelection {
         let pointerId: number | null = null;
         let threshold = 0.2;
 
-        const selectToolbar = new Container({
-            class: 'select-toolbar',
-            hidden: true
-        });
-
-        selectToolbar.dom.addEventListener('pointerdown', (event) => {
-            event.stopPropagation();
-        });
+        const selectToolbar = new ContextToolbar(canvasContainer);
 
         const thresholdInput = new NumericInput({
             value: threshold,
@@ -35,7 +29,6 @@ class EyedropperSelection {
         });
 
         selectToolbar.append(thresholdInput);
-        canvasContainer.append(selectToolbar);
 
         const getPointerOp = (event: PointerEvent): PointerOp => {
             if (event.shiftKey) {
@@ -109,7 +102,7 @@ class EyedropperSelection {
 
         this.activate = () => {
             parent.style.display = 'block';
-            selectToolbar.hidden = false;
+            selectToolbar.show();
             parent.addEventListener('pointerdown', pointerdown);
             parent.addEventListener('pointermove', pointermove);
             parent.addEventListener('pointerup', pointerup);
@@ -118,7 +111,7 @@ class EyedropperSelection {
 
         this.deactivate = () => {
             parent.style.display = 'none';
-            selectToolbar.hidden = true;
+            selectToolbar.hide();
             resetPointer();
             parent.removeEventListener('pointerdown', pointerdown);
             parent.removeEventListener('pointermove', pointermove);

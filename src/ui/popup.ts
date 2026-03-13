@@ -1,4 +1,4 @@
-import { Button, Container, Label, TextInput } from '@playcanvas/pcui';
+import { Button, Container, Label } from '@playcanvas/pcui';
 
 import { BaseDialog } from './base-dialog';
 import { localize } from './localization';
@@ -108,15 +108,12 @@ class Popup extends BaseDialog {
             cancelButton.hidden = type !== 'okcancel';
             yesButton.hidden = type !== 'yesno';
             noButton.hidden = type !== 'yesno';
-            this.hidden = false;
 
             linkRow.hidden = link === undefined;
             if (link !== undefined) {
                 linkText.dom.innerHTML = `<a href='${link}' target='_blank'>${link}</a>`;
                 linkCopy.icon = 'E352';
             }
-
-            this.dom.focus();
 
             return new Promise<{action: string, value?: string}>((resolve) => {
                 okFn = () => {
@@ -144,6 +141,16 @@ class Popup extends BaseDialog {
                     navigator.clipboard.writeText(link);
                     linkCopy.icon = 'E348';
                 };
+
+                this.onCancel = () => {
+                    if (type === 'yesno') {
+                        noFn();
+                    } else {
+                        cancelFn();
+                    }
+                };
+
+                this.showDialog();
             });
         };
 

@@ -1,10 +1,11 @@
-import { Button, Container, NumericInput } from '@playcanvas/pcui';
+import { Container, NumericInput } from '@playcanvas/pcui';
 import { TranslateGizmo, Vec3 } from 'playcanvas';
 
 import { Events } from '../events';
 import { Scene } from '../scene';
 import { SphereShape } from '../sphere-shape';
 import { Splat } from '../splat';
+import { ContextToolbar } from '../ui/context-toolbar';
 
 class SphereSelection {
     activate: () => void;
@@ -26,18 +27,15 @@ class SphereSelection {
         });
 
         // ui
-        const selectToolbar = new Container({
-            class: 'select-toolbar',
-            hidden: true
-        });
+        const selectToolbar = new ContextToolbar(canvasContainer);
 
-        selectToolbar.dom.addEventListener('pointerdown', (e) => {
-            e.stopPropagation();
-        });
+        const apply = (op: 'set' | 'add' | 'remove') => {
+            const p = sphere.pivot.getPosition();
+            events.fire('select.bySphere', op, [p.x, p.y, p.z, sphere.radius]);
+        };
 
-        const setButton = new Button({ text: 'Set', class: 'select-toolbar-button' });
-        const addButton = new Button({ text: 'Add', class: 'select-toolbar-button' });
-        const removeButton = new Button({ text: 'Remove', class: 'select-toolbar-button' });
+        const { set: setButton, add: addButton, remove: removeButton } = ContextToolbar.createSelectionButtons(apply);
+
         const radius = new NumericInput({
             precision: 2,
             value: sphere.radius,
@@ -51,22 +49,6 @@ class SphereSelection {
         selectToolbar.append(removeButton);
         selectToolbar.append(radius);
 
-        canvasContainer.append(selectToolbar);
-
-        const apply = (op: 'set' | 'add' | 'remove') => {
-            const p = sphere.pivot.getPosition();
-            events.fire('select.bySphere', op, [p.x, p.y, p.z, sphere.radius]);
-        };
-
-        setButton.dom.addEventListener('pointerdown', (e) => {
-            e.stopPropagation(); apply('set');
-        });
-        addButton.dom.addEventListener('pointerdown', (e) => {
-            e.stopPropagation(); apply('add');
-        });
-        removeButton.dom.addEventListener('pointerdown', (e) => {
-            e.stopPropagation(); apply('remove');
-        });
         radius.on('change', () => {
             sphere.radius = radius.value;
         });
@@ -94,11 +76,11 @@ class SphereSelection {
             this.active = true;
             scene.add(sphere);
             gizmo.attach([sphere.pivot]);
-            selectToolbar.hidden = false;
+            selectToolbar.show();
         };
 
         this.deactivate = () => {
-            selectToolbar.hidden = true;
+            selectToolbar.hide();
             gizmo.detach();
             scene.remove(sphere);
             this.active = false;

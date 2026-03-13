@@ -217,7 +217,7 @@ class EditorUI {
         document.body.setAttribute('tabIndex', '-1');
 
         events.on('show.shortcuts', () => {
-            shortcutsPopup.hidden = false;
+            shortcutsPopup.show();
         });
 
         events.function('show.exportPopup', (exportType, splatNames: [string], showFilenameEdit: boolean) => {
@@ -337,7 +337,7 @@ class EditorUI {
         });
 
         events.on('show.about', () => {
-            aboutPopup.hidden = false;
+            aboutPopup.show();
         });
 
         events.function('showPopup', (options: ShowOptions) => {

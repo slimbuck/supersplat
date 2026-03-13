@@ -1,6 +1,7 @@
 import { Container, NumericInput } from '@playcanvas/pcui';
 
 import { Events } from '../events';
+import { ContextToolbar } from '../ui/context-toolbar';
 
 type Pt = {x : number, y: number };
 
@@ -24,14 +25,7 @@ class FloodSelection {
         let imageData: ImageData;
 
         // ui
-        const selectToolbar = new Container({
-            class: 'select-toolbar',
-            hidden: true
-        });
-
-        selectToolbar.dom.addEventListener('pointerdown', (e) => {
-            e.stopPropagation();
-        });
+        const selectToolbar = new ContextToolbar(canvasContainer);
 
         const thresholdInput = new NumericInput({
             value: threshold,
@@ -42,8 +36,6 @@ class FloodSelection {
             max: 0.999
         });
         selectToolbar.append(thresholdInput);
-
-        canvasContainer.append(selectToolbar);
 
         const apply = async (op: 'set' | 'add' | 'remove') => {
             await events.invoke(
@@ -139,7 +131,7 @@ class FloodSelection {
 
         this.activate = () => {
             parent.style.display = 'block';
-            selectToolbar.hidden = false;
+            selectToolbar.show();
             canvasContainer.dom.addEventListener('pointerdown', pointerdown);
             canvasContainer.dom.addEventListener('pointermove', pointermove);
             canvasContainer.dom.addEventListener('pointerup', pointerup, true);
@@ -147,7 +139,7 @@ class FloodSelection {
 
         this.deactivate = () => {
             parent.style.display = 'none';
-            selectToolbar.hidden = true;
+            selectToolbar.hide();
             canvasContainer.dom.removeEventListener('pointerdown', pointerdown);
             canvasContainer.dom.removeEventListener('pointermove', pointermove);
             canvasContainer.dom.removeEventListener('pointerup', pointerup);
