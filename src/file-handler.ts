@@ -305,15 +305,26 @@ const initFileHandler = (scene: Scene, events: Events, dropTarget: HTMLElement) 
     const importFiles = async (files: ImportFile[], animationFrame = false) => {
         const filenames = files.map(f => f.filename.toLowerCase());
 
-        const result = [];
+        const result: Splat[] = [];
 
         if (isPlySequence(filenames)) {
             // handle ply sequence
             events.fire('plysequence.setFrames', files.map(f => f.contents));
             events.fire('timeline.frame', 0);
         } else if (isSog(filenames) || isLcc(filenames)) {
-            // import multi-file splat model (SOG or LCC)
-            result.push(await importSplatModel(files, animationFrame));
+            if (isLcc(filenames)) {
+                const response = await events.invoke('showPopup', {
+                    type: 'okcancel',
+                    header: 'LCC',
+                    message: localize('popup.lcc-upload-warning'),
+                    link: `${window.location.origin}/upload`
+                });
+                if (response.action === 'cancel') {
+                    return result;
+                }
+            }
+            const model = await importSplatModel(files, animationFrame);
+            if (model) result.push(model);
         } else {
             // check for unrecognized file types
             for (let i = 0; i < filenames.length; i++) {
@@ -333,7 +344,8 @@ const initFileHandler = (scene: Scene, events: Events, dropTarget: HTMLElement) 
                     await events.invoke('doc.load', files[i].contents ?? (await fetch(files[i].url)).arrayBuffer(), files[i].handle);
                 } else if (['.ply', '.splat', '.sog', '.ksplat', '.spz'].some(ext => filename.endsWith(ext))) {
                     // load gaussian splat model
-                    result.push(await importSplatModel([files[i]], animationFrame));
+                    const model = await importSplatModel([files[i]], animationFrame);
+                    if (model) result.push(model);
                 } else if (filename.endsWith('images.txt')) {
                     // load colmap frames
                     await loadImagesTxt(files[i], events);
