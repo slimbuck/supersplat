@@ -41,6 +41,7 @@
 @mixin dialog-header {
     height: $dialog-header-height;
     line-height: $dialog-header-height;
+    flex-shrink: 0;
     margin: 0;
     padding: 0 8px;
 
@@ -50,8 +51,9 @@
     text-transform: uppercase;
 }
 
-// Dialog content area
+// Dialog content area -- the only flex child that shrinks/grows
 @mixin dialog-content {
+    flex: 1;
     min-height: 60px;
     padding: 12px;
 }
@@ -59,6 +61,7 @@
 // Dialog footer with centered buttons
 @mixin dialog-footer {
     display: flex;
+    flex-shrink: 0;
     justify-content: center;
     padding-bottom: 4px;
 }
