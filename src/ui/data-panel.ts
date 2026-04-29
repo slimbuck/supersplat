@@ -1,4 +1,5 @@
 import { BooleanInput, Container, Label } from '@playcanvas/pcui';
+import { Mat4 } from 'playcanvas';
 
 import { ColorGrade, dcDecode } from '../color-grade';
 import { Events } from '../events';
@@ -122,6 +123,26 @@ class DataPanel extends Container {
         showAll.append(showAllLabel);
         showAll.append(showAllValue);
 
+        const onScreenOnly = new Container({
+            class: 'data-panel-toggle-row',
+            flex: true,
+            flexDirection: 'row'
+        });
+
+        const onScreenOnlyLabel = new Label({
+            class: 'data-panel-toggle-label',
+            text: localize('panel.splat-data.on-screen-only')
+        });
+
+        const onScreenOnlyValue = new BooleanInput({
+            type: 'toggle',
+            class: 'data-panel-toggle',
+            value: false
+        });
+
+        onScreenOnly.append(onScreenOnlyLabel);
+        onScreenOnly.append(onScreenOnlyValue);
+
         const populateDataSelector = (splat: Splat) => {
             // default prop localizations - order defines display order
             const localizations: any = {
@@ -204,6 +225,7 @@ class DataPanel extends Container {
 
         controls.append(logScale);
         controls.append(showAll);
+        controls.append(onScreenOnly);
         controls.append(dataListBox);
 
         controlsContainer.append(controls);
@@ -320,27 +342,99 @@ class DataPanel extends Container {
             return func;
         };
 
-        const updateHistogram = () => {
+        const gpuPropMode: { [key: string]: number } = { x: 0, y: 1, z: 2, distance: 3 };
+        let updateToken = 0;
+        let lastValueFunc: (i: number) => number = null;
+        let lastVisibleFunc: (i: number) => boolean = null;
+        const viewProjection = new Mat4();
+
+        const updateHistogram = async () => {
             if (!splat || this.hidden) return;
 
             const state = splat.splatData.getProp('state') as Uint8Array;
-            if (state) {
-                // update histogram
-                const func = getValueFunc();
+            if (!state) return;
 
-                histogram.update({
-                    count: state.length,
-                    valueFunc: i => ((state[i] === 0 || state[i] === State.selected) ? func(i) : undefined),
-                    selectedFunc: i => state[i] === State.selected,
-                    logScale: logScaleValue.value
-                });
+            const myToken = ++updateToken;
+
+            let func: (i: number) => number;
+            let visibleFunc: (i: number) => boolean = null;
+            const mode = gpuPropMode[selectedDataProp];
+            if (mode !== undefined) {
+                const useOnScreen = onScreenOnlyValue.value;
+                let opts;
+                if (useOnScreen) {
+                    const cam = splat.scene.camera.camera;
+                    viewProjection.mul2(cam.projectionMatrix, cam.viewMatrix);
+                    opts = {
+                        entityMatrix: splat.entity.getWorldTransform(),
+                        viewProjection,
+                        onScreenOnly: true
+                    };
+                } else {
+                    opts = { entityMatrix: splat.entity.getWorldTransform() };
+                }
+                const data = await splat.scene.dataProcessor.calcProperty(splat, mode, opts);
+                if (myToken !== updateToken) return;
+                func = i => data[i * 4];
+                if (useOnScreen) {
+                    visibleFunc = i => data[i * 4 + 1] !== 0;
+                }
+            } else {
+                func = getValueFunc();
             }
+
+            lastValueFunc = func;
+            lastVisibleFunc = visibleFunc;
+
+            const visible = visibleFunc;
+            histogram.update({
+                count: state.length,
+                valueFunc: (i) => {
+                    if (state[i] !== 0 && state[i] !== State.selected) return undefined;
+                    if (visible && !visible(i)) return undefined;
+                    return func(i);
+                },
+                selectedFunc: i => state[i] === State.selected,
+                logScale: logScaleValue.value
+            });
         };
 
         events.on('splat.stateChanged', (splat_: Splat) => {
             splat = splat_;
             updateHistogram();
         });
+
+        const positionProps = new Set(['x', 'y', 'z', 'distance']);
+        events.on('splat.positionsChanged', (splat_: Splat) => {
+            if (splat_ === splat && positionProps.has(selectedDataProp)) {
+                updateHistogram();
+            }
+        });
+
+        events.on('splat.moved', (splat_: Splat) => {
+            if (splat_ === splat && positionProps.has(selectedDataProp)) {
+                updateHistogram();
+            }
+        });
+
+        // when on-screen filter is active and the camera moves, refresh
+        let cameraDirty = false;
+        const lastCameraMatrix = new Mat4();
+        events.on('prerender', (cameraMatrix: Mat4) => {
+            if (!onScreenOnlyValue.value || !positionProps.has(selectedDataProp)) return;
+            if (!cameraMatrix.equals(lastCameraMatrix)) {
+                lastCameraMatrix.copy(cameraMatrix);
+                if (!cameraDirty) {
+                    cameraDirty = true;
+                    requestAnimationFrame(() => {
+                        cameraDirty = false;
+                        updateHistogram();
+                    });
+                }
+            }
+        });
+
+        onScreenOnlyValue.on('change', updateHistogram);
 
         const colorEvents = [
             'splat.tintClr', 'splat.temperature', 'splat.saturation',
@@ -447,13 +541,19 @@ class DataPanel extends Container {
         histogram.events.on('select', (op: string, start: number, end: number) => {
             svg.style.display = 'none';
 
+            if (!lastValueFunc) return;
+
             const state = splat.splatData.getProp('state') as Uint8Array;
-            const selection = state.some(s => s === State.selected);
-            const func = getValueFunc();
+            const func = lastValueFunc;
+            const visible = lastVisibleFunc;
 
             // perform selection
             events.fire('select.pred', op, (i: number) => {
                 if (state[i] !== 0 && state[i] !== State.selected) {
+                    return false;
+                }
+
+                if (visible && !visible(i)) {
                     return false;
                 }
 

@@ -101,6 +101,7 @@
     "panel.splat-data.sh": "SH",
     "panel.splat-data.log-scale": "Log Scale",
     "panel.splat-data.show-all": "Show All",
+    "panel.splat-data.on-screen-only": "On-Screen Only",
     "panel.splat-data.totals": "Totals",
     "panel.splat-data.totals.splats": "Splats",
     "panel.splat-data.totals.selected": "Selected",

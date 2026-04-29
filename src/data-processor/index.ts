@@ -12,6 +12,7 @@ import {
 
 import { CalcBound } from './calc-bound';
 import { CalcPositions } from './calc-positions';
+import { CalcProperty, CalcPropertyOptions } from './calc-property';
 import { Intersect, IntersectOptions } from './intersect';
 import { Splat } from '../splat';
 
@@ -33,6 +34,7 @@ class DataProcessor {
     private intersectImpl: Intersect;
     private calcBoundImpl: CalcBound;
     private calcPositionsImpl: CalcPositions;
+    private calcPropertyImpl: CalcProperty;
 
     constructor(device: GraphicsDevice) {
         this.device = device;
@@ -61,6 +63,7 @@ class DataProcessor {
         this.intersectImpl = new Intersect(device);
         this.calcBoundImpl = new CalcBound(device);
         this.calcPositionsImpl = new CalcPositions(device);
+        this.calcPropertyImpl = new CalcProperty(device);
     }
 
     // enqueue async operations to run one at a time
@@ -85,6 +88,11 @@ class DataProcessor {
         return this.enqueue(() => this.calcPositionsImpl.run(splat));
     }
 
+    // calculate a per-splat scalar property (mode: 0=x, 1=y, 2=z, 3=distance)
+    calcProperty(splat: Splat, mode: number, options?: CalcPropertyOptions) {
+        return this.enqueue(() => this.calcPropertyImpl.run(splat, mode, options));
+    }
+
     copyRt(source: RenderTarget, dest: RenderTarget) {
         const { device } = this;
 
@@ -98,5 +106,5 @@ class DataProcessor {
 }
 
 export { DataProcessor };
-export type { IntersectOptions };
+export type { IntersectOptions, CalcPropertyOptions };
 export { MaskOptions, RectOptions, SphereOptions, BoxOptions } from './intersect';
