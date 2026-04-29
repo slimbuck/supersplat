@@ -10,8 +10,9 @@ const fragmentShader = /* glsl */ `
     uniform highp usampler2D splatTransform;        // transform palette index
     uniform sampler2D transformPalette;             // palette of transforms
     uniform ivec2 splat_params;                     // splat texture width, num splats
-    uniform int propMode;                           // 0=x, 1=y, 2=z, 3=distance
+    uniform int propMode;                           // 0=x, 1=y, 2=z, 3=distance, 4=camera depth
     uniform mat4 entityMatrix;                      // splat entity world transform
+    uniform mat4 viewMatrix;                        // camera view matrix (only when propMode==4)
     uniform mat4 viewProjection;                    // camera view*projection (only when onScreenOnly==1)
     uniform int onScreenOnly;                       // 1 = mark off-screen splats with visibility=0
 
@@ -44,6 +45,7 @@ const fragmentShader = /* glsl */ `
         else if (propMode == 1) value = worldCenter.y;
         else if (propMode == 2) value = worldCenter.z;
         else if (propMode == 3) value = length(worldCenter);
+        else if (propMode == 4) value = -(viewMatrix * vec4(worldCenter, 1.0)).z;
 
         float visibility = 1.0;
         if (onScreenOnly == 1) {

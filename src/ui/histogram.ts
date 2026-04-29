@@ -82,6 +82,15 @@ interface UpdateOptions {
     logScale?: boolean
 }
 
+interface SetDataOptions {
+    selected: Float32Array;     // length = numBins
+    unselected: Float32Array;   // length = numBins
+    min: number;
+    max: number;
+    numValues: number;
+    logScale?: boolean
+}
+
 class Histogram {
     canvas: HTMLCanvasElement;
     context: CanvasRenderingContext2D;
@@ -201,17 +210,13 @@ class Histogram {
         });
     }
 
-    update(options: UpdateOptions) {
-        // update histogram data
-        this.histogram.calc(options.count, options.valueFunc, options.selectedFunc);
-
-        // draw histogram
+    private render(logScale: boolean) {
         const canvas = this.canvas;
         const context = this.context;
         const pixelData = this.pixelData;
         const pixels = new Uint32Array(pixelData.data.buffer);
 
-        const binMap = options.logScale ? (x: number) => Math.log(x + 1) : (x: number) => x;
+        const binMap = logScale ? (x: number) => Math.log(x + 1) : (x: number) => x;
         const bins = this.histogram.bins.map((v) => {
             return {
                 selected: binMap(v.unselected + v.selected),
@@ -240,6 +245,24 @@ class Histogram {
         }
 
         context.putImageData(pixelData, 0, 0);
+    }
+
+    update(options: UpdateOptions) {
+        this.histogram.calc(options.count, options.valueFunc, options.selectedFunc);
+        this.render(options.logScale);
+    }
+
+    setData(options: SetDataOptions) {
+        const bins = this.histogram.bins;
+        const n = Math.min(bins.length, options.selected.length);
+        for (let i = 0; i < n; i++) {
+            bins[i].selected = options.selected[i];
+            bins[i].unselected = options.unselected[i];
+        }
+        this.histogram.numValues = options.numValues;
+        this.histogram.minValue = options.min;
+        this.histogram.maxValue = options.max;
+        this.render(options.logScale);
     }
 }
 

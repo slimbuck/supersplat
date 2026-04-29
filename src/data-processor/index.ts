@@ -11,6 +11,7 @@ import {
 } from 'playcanvas';
 
 import { CalcBound } from './calc-bound';
+import { CalcHistogram, CalcHistogramOptions } from './calc-histogram';
 import { CalcPositions } from './calc-positions';
 import { CalcProperty, CalcPropertyOptions } from './calc-property';
 import { Intersect, IntersectOptions } from './intersect';
@@ -35,6 +36,7 @@ class DataProcessor {
     private calcBoundImpl: CalcBound;
     private calcPositionsImpl: CalcPositions;
     private calcPropertyImpl: CalcProperty;
+    private calcHistogramImpl: CalcHistogram;
 
     constructor(device: GraphicsDevice) {
         this.device = device;
@@ -64,6 +66,7 @@ class DataProcessor {
         this.calcBoundImpl = new CalcBound(device);
         this.calcPositionsImpl = new CalcPositions(device);
         this.calcPropertyImpl = new CalcProperty(device);
+        this.calcHistogramImpl = new CalcHistogram(device);
     }
 
     // enqueue async operations to run one at a time
@@ -93,6 +96,11 @@ class DataProcessor {
         return this.enqueue(() => this.calcPropertyImpl.run(splat, mode, options));
     }
 
+    // calculate histogram (bin counts + min/max) entirely on GPU
+    calcHistogram(splat: Splat, mode: number, options?: CalcHistogramOptions) {
+        return this.enqueue(() => this.calcHistogramImpl.run(splat, mode, options));
+    }
+
     copyRt(source: RenderTarget, dest: RenderTarget) {
         const { device } = this;
 
@@ -106,5 +114,5 @@ class DataProcessor {
 }
 
 export { DataProcessor };
-export type { IntersectOptions, CalcPropertyOptions };
+export type { IntersectOptions, CalcPropertyOptions, CalcHistogramOptions };
 export { MaskOptions, RectOptions, SphereOptions, BoxOptions } from './intersect';

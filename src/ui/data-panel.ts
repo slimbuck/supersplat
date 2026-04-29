@@ -161,6 +161,7 @@ class DataPanel extends Container {
                 rot_2: `${localize('panel.splat-data.quat')} Y`,
                 rot_3: `${localize('panel.splat-data.quat')} Z`,
                 distance: localize('panel.splat-data.distance'),
+                'camera-depth': localize('panel.splat-data.camera-depth'),
                 volume: localize('panel.splat-data.volume'),
                 'surface-area': localize('panel.splat-data.surface-area'),
                 hue: localize('panel.splat-data.hue'),
@@ -180,7 +181,7 @@ class DataPanel extends Container {
             }
 
             const dataProps = splat.splatData.getElement('vertex').properties.map(p => p.name);
-            const derivedProps = ['distance', 'volume', 'surface-area', 'hue', 'saturation', 'value'];
+            const derivedProps = ['distance', 'camera-depth', 'volume', 'surface-area', 'hue', 'saturation', 'value'];
             const availableProps = new Set(dataProps.concat(derivedProps));
 
             // build ordered default props from localizations keys, filtered to available
@@ -342,11 +343,28 @@ class DataPanel extends Container {
             return func;
         };
 
-        const gpuPropMode: { [key: string]: number } = { x: 0, y: 1, z: 2, distance: 3 };
+        const gpuPropMode: { [key: string]: number } = { x: 0, y: 1, z: 2, distance: 3, 'camera-depth': 4 };
         let updateToken = 0;
         let lastValueFunc: (i: number) => number = null;
-        let lastVisibleFunc: (i: number) => boolean = null;
+        let lastGpuMode: number | null = null;
+        let lastGpuOnScreen = false;
         const viewProjection = new Mat4();
+
+        const buildGpuOpts = () => {
+            const cam = splat.scene.camera.camera;
+            const useOnScreen = onScreenOnlyValue.value;
+            const needsViewMatrix = selectedDataProp === 'camera-depth';
+            const opts: any = { entityMatrix: splat.entity.getWorldTransform() };
+            if (useOnScreen) {
+                viewProjection.mul2(cam.projectionMatrix, cam.viewMatrix);
+                opts.viewProjection = viewProjection;
+                opts.onScreenOnly = true;
+            }
+            if (needsViewMatrix) {
+                opts.viewMatrix = cam.viewMatrix;
+            }
+            return opts;
+        };
 
         const updateHistogram = async () => {
             if (!splat || this.hidden) return;
@@ -355,48 +373,37 @@ class DataPanel extends Container {
             if (!state) return;
 
             const myToken = ++updateToken;
-
-            let func: (i: number) => number;
-            let visibleFunc: (i: number) => boolean = null;
             const mode = gpuPropMode[selectedDataProp];
+
             if (mode !== undefined) {
-                const useOnScreen = onScreenOnlyValue.value;
-                let opts;
-                if (useOnScreen) {
-                    const cam = splat.scene.camera.camera;
-                    viewProjection.mul2(cam.projectionMatrix, cam.viewMatrix);
-                    opts = {
-                        entityMatrix: splat.entity.getWorldTransform(),
-                        viewProjection,
-                        onScreenOnly: true
-                    };
-                } else {
-                    opts = { entityMatrix: splat.entity.getWorldTransform() };
-                }
-                const data = await splat.scene.dataProcessor.calcProperty(splat, mode, opts);
+                const opts = buildGpuOpts();
+                const result = await splat.scene.dataProcessor.calcHistogram(splat, mode, opts);
                 if (myToken !== updateToken) return;
-                func = i => data[i * 4];
-                if (useOnScreen) {
-                    visibleFunc = i => data[i * 4 + 1] !== 0;
-                }
+
+                lastValueFunc = null;
+                lastGpuMode = mode;
+                lastGpuOnScreen = !!opts.onScreenOnly;
+
+                histogram.setData({
+                    selected: result.selected,
+                    unselected: result.unselected,
+                    min: result.min,
+                    max: result.max,
+                    numValues: result.numValues,
+                    logScale: logScaleValue.value
+                });
             } else {
-                func = getValueFunc();
+                const func = getValueFunc();
+                lastValueFunc = func;
+                lastGpuMode = null;
+
+                histogram.update({
+                    count: state.length,
+                    valueFunc: i => ((state[i] === 0 || state[i] === State.selected) ? func(i) : undefined),
+                    selectedFunc: i => state[i] === State.selected,
+                    logScale: logScaleValue.value
+                });
             }
-
-            lastValueFunc = func;
-            lastVisibleFunc = visibleFunc;
-
-            const visible = visibleFunc;
-            histogram.update({
-                count: state.length,
-                valueFunc: (i) => {
-                    if (state[i] !== 0 && state[i] !== State.selected) return undefined;
-                    if (visible && !visible(i)) return undefined;
-                    return func(i);
-                },
-                selectedFunc: i => state[i] === State.selected,
-                logScale: logScaleValue.value
-            });
         };
 
         events.on('splat.stateChanged', (splat_: Splat) => {
@@ -404,7 +411,7 @@ class DataPanel extends Container {
             updateHistogram();
         });
 
-        const positionProps = new Set(['x', 'y', 'z', 'distance']);
+        const positionProps = new Set(['x', 'y', 'z', 'distance', 'camera-depth']);
         events.on('splat.positionsChanged', (splat_: Splat) => {
             if (splat_ === splat && positionProps.has(selectedDataProp)) {
                 updateHistogram();
@@ -417,20 +424,22 @@ class DataPanel extends Container {
             }
         });
 
-        // when on-screen filter is active and the camera moves, refresh
-        let cameraDirty = false;
+        // refresh on camera settle when current prop depends on the camera
+        const CAMERA_SETTLE_MS = 150;
+        let cameraTimer: number | null = null;
         const lastCameraMatrix = new Mat4();
         events.on('prerender', (cameraMatrix: Mat4) => {
-            if (!onScreenOnlyValue.value || !positionProps.has(selectedDataProp)) return;
+            const dependsOnCamera =
+                (onScreenOnlyValue.value && positionProps.has(selectedDataProp)) ||
+                selectedDataProp === 'camera-depth';
+            if (!dependsOnCamera) return;
             if (!cameraMatrix.equals(lastCameraMatrix)) {
                 lastCameraMatrix.copy(cameraMatrix);
-                if (!cameraDirty) {
-                    cameraDirty = true;
-                    requestAnimationFrame(() => {
-                        cameraDirty = false;
-                        updateHistogram();
-                    });
-                }
+                if (cameraTimer !== null) clearTimeout(cameraTimer);
+                cameraTimer = window.setTimeout(() => {
+                    cameraTimer = null;
+                    updateHistogram();
+                }, CAMERA_SETTLE_MS);
             }
         });
 
@@ -538,26 +547,33 @@ class DataPanel extends Container {
             svg.style.display = 'inline';
         });
 
-        histogram.events.on('select', (op: string, start: number, end: number) => {
+        histogram.events.on('select', async (op: string, start: number, end: number) => {
             svg.style.display = 'none';
 
-            if (!lastValueFunc) return;
-
             const state = splat.splatData.getProp('state') as Uint8Array;
-            const func = lastValueFunc;
-            const visible = lastVisibleFunc;
+            let func: (i: number) => number;
+            let visible: (i: number) => boolean | null = null;
 
-            // perform selection
+            if (lastGpuMode !== null) {
+                // GPU path needs a one-shot per-splat readback to build the predicate
+                const opts = buildGpuOpts();
+                const data = await splat.scene.dataProcessor.calcProperty(splat, lastGpuMode, opts);
+                func = i => data[i * 4];
+                if (lastGpuOnScreen) {
+                    visible = i => data[i * 4 + 1] !== 0;
+                }
+            } else {
+                if (!lastValueFunc) return;
+                func = lastValueFunc;
+            }
+
             events.fire('select.pred', op, (i: number) => {
                 if (state[i] !== 0 && state[i] !== State.selected) {
                     return false;
                 }
-
                 if (visible && !visible(i)) {
                     return false;
                 }
-
-                // select all splats that fall in the given bucket range (inclusive)
                 const value = func(i);
                 const bucket = histogram.histogram.valueToBucket(value);
                 return bucket >= start && bucket <= end;

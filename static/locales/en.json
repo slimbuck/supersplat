@@ -83,6 +83,7 @@
     "panel.view-options.tonemapping.hejl": "Hejl",
     "panel.splat-data": "Splat Data",
     "panel.splat-data.distance": "Distance",
+    "panel.splat-data.camera-depth": "Camera Depth",
     "panel.splat-data.volume": "Volume",
     "panel.splat-data.surface-area": "Surface Area",
     "panel.splat-data.scale-x": "Scale X",

@@ -20,6 +20,7 @@ const identity = new Mat4();
 
 type CalcPropertyOptions = {
     entityMatrix?: Mat4;
+    viewMatrix?: Mat4;
     viewProjection?: Mat4;
     onScreenOnly?: boolean;
 };
@@ -99,6 +100,7 @@ class CalcProperty {
         const resources = this.getResources(transformA.width, transformA.height);
 
         const entityMatrix = options?.entityMatrix ?? identity;
+        const viewMatrix = options?.viewMatrix ?? identity;
         const viewProjection = options?.viewProjection ?? identity;
         const onScreenOnly = options?.onScreenOnly ? 1 : 0;
 
@@ -109,6 +111,7 @@ class CalcProperty {
             splat_params: [transformA.width, numSplats],
             propMode: mode,
             entityMatrix: entityMatrix.data,
+            viewMatrix: viewMatrix.data,
             viewProjection: viewProjection.data,
             onScreenOnly
         });
