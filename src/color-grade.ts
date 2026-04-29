@@ -43,7 +43,7 @@ class ColorGrade {
             !p.tintClr.equals(Color.WHITE) ||
             p.temperature !== 0 ||
             p.saturation !== 1 ||
-            p.brightness !== 1 ||
+            p.brightness !== 0 ||
             p.blackPoint !== 0 ||
             p.whitePoint !== 1
         );
@@ -70,6 +70,10 @@ class ColorGrade {
 
     applyOpacity(o: number): number {
         return invSigmoid(sigmoid(o) * this.transparency);
+    }
+
+    applyAlpha(o: number): number {
+        return sigmoid(o) * this.transparency;
     }
 }
 

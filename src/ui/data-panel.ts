@@ -1,5 +1,6 @@
 import { BooleanInput, Container, Label } from '@playcanvas/pcui';
 
+import { ColorGrade, dcDecode } from '../color-grade';
 import { Events } from '../events';
 import { Splat } from '../splat';
 import { rgb2hsv } from './color';
@@ -7,20 +8,12 @@ import { Histogram } from './histogram';
 import { State } from '../splat-state';
 import { localize } from './localization';
 
-const SH_C0 = 0.28209479177387814;
-
 const scaleFunc = (v: number) => Math.exp(v);
-const colorFunc = (v: number) => 0.5 + v * SH_C0;
-const sigmoid = (v: number) => 1 / (1 + Math.exp(-v));
 
 const dataFuncs = {
     scale_0: scaleFunc,
     scale_1: scaleFunc,
-    scale_2: scaleFunc,
-    f_dc_0: colorFunc,
-    f_dc_1: colorFunc,
-    f_dc_2: colorFunc,
-    opacity: sigmoid
+    scale_2: scaleFunc
 };
 
 class DataPanel extends Container {
@@ -242,58 +235,86 @@ class DataPanel extends Container {
             // @ts-ignore
             const dataFunc = dataFuncs[selectedDataProp];
             const data = splat.splatData.getProp(selectedDataProp);
+            const grade = new ColorGrade(splat);
+            const c = { r: 0, g: 0, b: 0 };
+
+            const r = splat.splatData.getProp('f_dc_0') as Float32Array;
+            const g = splat.splatData.getProp('f_dc_1') as Float32Array;
+            const b = splat.splatData.getProp('f_dc_2') as Float32Array;
 
             let func: (i: number) => number;
-            if (dataFunc && data) {
-                func = i => dataFunc(data[i]);
-            } else {
-                switch (selectedDataProp) {
-                    case 'volume': {
-                        const sx = splat.splatData.getProp('scale_0');
-                        const sy = splat.splatData.getProp('scale_1');
-                        const sz = splat.splatData.getProp('scale_2');
-                        func = i => scaleFunc(sx[i]) * scaleFunc(sy[i]) * scaleFunc(sz[i]);
-                        break;
-                    }
-                    case 'distance': {
-                        const x = splat.splatData.getProp('x');
-                        const y = splat.splatData.getProp('y');
-                        const z = splat.splatData.getProp('z');
-                        func = i => Math.sqrt(x[i] ** 2 + y[i] ** 2 + z[i] ** 2);
-                        break;
-                    }
-                    case 'surface-area': {
-                        const sx = splat.splatData.getProp('scale_0');
-                        const sy = splat.splatData.getProp('scale_1');
-                        const sz = splat.splatData.getProp('scale_2');
-                        func = i => scaleFunc(sx[i]) ** 2 + scaleFunc(sy[i]) ** 2 + scaleFunc(sz[i]) ** 2;
-                        break;
-                    }
-                    case 'hue': {
-                        const r = splat.splatData.getProp('f_dc_0');
-                        const g = splat.splatData.getProp('f_dc_1');
-                        const b = splat.splatData.getProp('f_dc_2');
-                        func = i => rgb2hsv({ r: colorFunc(r[i]), g: colorFunc(g[i]), b: colorFunc(b[i]) }).h * 360;
-                        break;
-                    }
-                    case 'saturation': {
-                        const r = splat.splatData.getProp('f_dc_0');
-                        const g = splat.splatData.getProp('f_dc_1');
-                        const b = splat.splatData.getProp('f_dc_2');
-                        func = i => rgb2hsv({ r: colorFunc(r[i]), g: colorFunc(g[i]), b: colorFunc(b[i]) }).s;
-                        break;
-                    }
-                    case 'value': {
-                        const r = splat.splatData.getProp('f_dc_0');
-                        const g = splat.splatData.getProp('f_dc_1');
-                        const b = splat.splatData.getProp('f_dc_2');
-                        func = i => rgb2hsv({ r: colorFunc(r[i]), g: colorFunc(g[i]), b: colorFunc(b[i]) }).v;
-                        break;
-                    }
-                    default:
-                        func = i => data[i];
-                        break;
+            switch (selectedDataProp) {
+                case 'f_dc_0':
+                    func = (i) => {
+                        c.r = dcDecode(r[i]); c.g = dcDecode(g[i]); c.b = dcDecode(b[i]);
+                        grade.applyDC(c);
+                        return c.r;
+                    };
+                    break;
+                case 'f_dc_1':
+                    func = (i) => {
+                        c.r = dcDecode(r[i]); c.g = dcDecode(g[i]); c.b = dcDecode(b[i]);
+                        grade.applyDC(c);
+                        return c.g;
+                    };
+                    break;
+                case 'f_dc_2':
+                    func = (i) => {
+                        c.r = dcDecode(r[i]); c.g = dcDecode(g[i]); c.b = dcDecode(b[i]);
+                        grade.applyDC(c);
+                        return c.b;
+                    };
+                    break;
+                case 'hue':
+                    func = (i) => {
+                        c.r = dcDecode(r[i]); c.g = dcDecode(g[i]); c.b = dcDecode(b[i]);
+                        grade.applyDC(c);
+                        return rgb2hsv(c).h * 360;
+                    };
+                    break;
+                case 'saturation':
+                    func = (i) => {
+                        c.r = dcDecode(r[i]); c.g = dcDecode(g[i]); c.b = dcDecode(b[i]);
+                        grade.applyDC(c);
+                        return rgb2hsv(c).s;
+                    };
+                    break;
+                case 'value':
+                    func = (i) => {
+                        c.r = dcDecode(r[i]); c.g = dcDecode(g[i]); c.b = dcDecode(b[i]);
+                        grade.applyDC(c);
+                        return rgb2hsv(c).v;
+                    };
+                    break;
+                case 'opacity': {
+                    const o = splat.splatData.getProp('opacity') as Float32Array;
+                    func = i => grade.applyAlpha(o[i]);
+                    break;
                 }
+                case 'volume': {
+                    const sx = splat.splatData.getProp('scale_0');
+                    const sy = splat.splatData.getProp('scale_1');
+                    const sz = splat.splatData.getProp('scale_2');
+                    func = i => scaleFunc(sx[i]) * scaleFunc(sy[i]) * scaleFunc(sz[i]);
+                    break;
+                }
+                case 'distance': {
+                    const x = splat.splatData.getProp('x');
+                    const y = splat.splatData.getProp('y');
+                    const z = splat.splatData.getProp('z');
+                    func = i => Math.sqrt(x[i] ** 2 + y[i] ** 2 + z[i] ** 2);
+                    break;
+                }
+                case 'surface-area': {
+                    const sx = splat.splatData.getProp('scale_0');
+                    const sy = splat.splatData.getProp('scale_1');
+                    const sz = splat.splatData.getProp('scale_2');
+                    func = i => scaleFunc(sx[i]) ** 2 + scaleFunc(sy[i]) ** 2 + scaleFunc(sz[i]) ** 2;
+                    break;
+                }
+                default:
+                    func = dataFunc && data ? i => dataFunc(data[i]) : i => data[i];
+                    break;
             }
 
             return func;
@@ -319,6 +340,20 @@ class DataPanel extends Container {
         events.on('splat.stateChanged', (splat_: Splat) => {
             splat = splat_;
             updateHistogram();
+        });
+
+        const colorEvents = [
+            'splat.tintClr', 'splat.temperature', 'splat.saturation',
+            'splat.brightness', 'splat.blackPoint', 'splat.whitePoint',
+            'splat.transparency'
+        ];
+        const colorProps = new Set(['f_dc_0', 'f_dc_1', 'f_dc_2', 'hue', 'saturation', 'value', 'opacity']);
+        colorEvents.forEach((name) => {
+            events.on(name, (splat_: Splat) => {
+                if (splat_ === splat && colorProps.has(selectedDataProp)) {
+                    updateHistogram();
+                }
+            });
         });
 
         events.on('selection.changed', (selection: Element) => {
