@@ -8,15 +8,20 @@ import { localize } from './localization';
 
 // gpu propMode constants. these must match the propMode dispatch in
 // src/shaders/splat-value-shader.ts.
+//
+// modes 5..7 and 18..20 read the final on-screen color (DC + evaluated SH for
+// the current view direction), so they are camera-dependent.
+// modes 66..68 read the raw f_dc_N coefficients reconstructed from the
+// already-decoded splatColor texture.
 const PROP_MODE: { [key: string]: number } = {
     x: 0,
     y: 1,
     z: 2,
     distance: 3,
     'camera-depth': 4,
-    f_dc_0: 5,
-    f_dc_1: 6,
-    f_dc_2: 7,
+    red: 5,
+    green: 6,
+    blue: 7,
     opacity: 8,
     scale_0: 9,
     scale_1: 10,
@@ -29,7 +34,10 @@ const PROP_MODE: { [key: string]: number } = {
     rot_3: 17,
     hue: 18,
     saturation: 19,
-    value: 20
+    value: 20,
+    f_dc_0: 66,
+    f_dc_1: 67,
+    f_dc_2: 68
 };
 
 // f_rest_N maps to mode (21 + N). max 45 SH coefficients (shBands 3).
@@ -171,15 +179,17 @@ class DataPanel extends Container {
         onScreenOnly.append(onScreenOnlyValue);
 
         const populateDataSelector = (splat: Splat) => {
-            // default prop localizations - order defines display order
+            // default prop localizations - order defines display order. "red",
+            // "green", "blue" and HSV here are the final on-screen color (DC
+            // + evaluated SH for the current view direction).
             const localizations: any = {
                 x: `${localize('panel.splat-data.position')} X`,
                 y: `${localize('panel.splat-data.position')} Y`,
                 z: `${localize('panel.splat-data.position')} Z`,
                 opacity: localize('panel.splat-data.opacity'),
-                f_dc_0: localize('panel.splat-data.red'),
-                f_dc_1: localize('panel.splat-data.green'),
-                f_dc_2: localize('panel.splat-data.blue'),
+                red: localize('panel.splat-data.red'),
+                green: localize('panel.splat-data.green'),
+                blue: localize('panel.splat-data.blue'),
                 scale_0: localize('panel.splat-data.scale-x'),
                 scale_1: localize('panel.splat-data.scale-y'),
                 scale_2: localize('panel.splat-data.scale-z'),
@@ -196,18 +206,27 @@ class DataPanel extends Container {
                 value: localize('panel.splat-data.value')
             };
 
-            // "Show All" extras: spherical harmonics coefficients, filtered by
-            // the splat's actual SH band count so we never offer a mode the GPU
-            // shader can't decode.
-            const extras: any = {};
+            // "Show All" extras: raw DC coefficients first, then spherical
+            // harmonics coefficients labelled with their channel (R/G/B) and
+            // within-channel index. all filtered by the splat's actual SH band
+            // count so we never offer a mode the GPU shader can't decode.
+            const extras: any = {
+                f_dc_0: localize('panel.splat-data.dc-red'),
+                f_dc_1: localize('panel.splat-data.dc-green'),
+                f_dc_2: localize('panel.splat-data.dc-blue')
+            };
             const shBands = (splat.entity.gsplat.instance.resource as any).shBands ?? 0;
-            const maxFRest = (SH_NUM_COEFFS[shBands] ?? 0) * 3;
+            const numCoeffs = SH_NUM_COEFFS[shBands] ?? 0;
+            const channels = ['R', 'G', 'B'];
+            const maxFRest = numCoeffs * 3;
             for (let i = 0; i < maxFRest; i++) {
-                extras[`f_rest_${i}`] = `${localize('panel.splat-data.sh')} ${i}`;
+                const channel = channels[Math.floor(i / numCoeffs)];
+                const idx = i % numCoeffs;
+                extras[`f_rest_${i}`] = `${channel} ${localize('panel.splat-data.sh')} ${idx}`;
             }
 
             const dataProps = splat.splatData.getElement('vertex').properties.map(p => p.name);
-            const derivedProps = ['distance', 'camera-depth', 'volume', 'surface-area', 'hue', 'saturation', 'value'];
+            const derivedProps = ['distance', 'camera-depth', 'volume', 'surface-area', 'red', 'green', 'blue', 'hue', 'saturation', 'value'];
             const availableProps = new Set(dataProps.concat(derivedProps));
 
             // build ordered default props from localizations keys, filtered to available
@@ -275,7 +294,8 @@ class DataPanel extends Container {
             const useOnScreen = onScreenOnlyValue.value;
             const opts: any = {
                 entityMatrix: splat.entity.getWorldTransform(),
-                viewMatrix: cam.viewMatrix
+                viewMatrix: cam.viewMatrix,
+                cameraPos: splat.scene.camera.position
             };
             if (useOnScreen) {
                 viewProjection.mul2(cam.projectionMatrix, cam.viewMatrix);
@@ -313,7 +333,13 @@ class DataPanel extends Container {
             updateHistogram();
         });
 
-        const positionProps = new Set(['x', 'y', 'z', 'distance', 'camera-depth']);
+        // position-dependent props: position itself, distance, camera-depth,
+        // and the view-direction-dependent final-color props (red/green/blue/
+        // hue/saturation/value), since their value depends on world position.
+        const positionProps = new Set([
+            'x', 'y', 'z', 'distance', 'camera-depth',
+            'red', 'green', 'blue', 'hue', 'saturation', 'value'
+        ]);
         events.on('splat.positionsChanged', (splat_: Splat) => {
             if (splat_ === splat && positionProps.has(selectedDataProp)) {
                 updateHistogram();
@@ -327,13 +353,19 @@ class DataPanel extends Container {
         });
 
         // refresh on camera settle when the histogram depends on the camera.
-        // anything with onScreenOnly enabled is camera-dependent, plus
-        // camera-depth itself.
+        // - onScreenOnly enables visibility culling against the frustum
+        // - camera-depth is camera-relative
+        // - red/green/blue/hue/saturation/value sample evaluated SH which
+        //   depends on the per-splat view direction
+        const cameraDependentProps = new Set([
+            'camera-depth',
+            'red', 'green', 'blue', 'hue', 'saturation', 'value'
+        ]);
         const CAMERA_SETTLE_MS = 150;
         let cameraTimer: number | null = null;
         const lastCameraMatrix = new Mat4();
         events.on('prerender', (cameraMatrix: Mat4) => {
-            const dependsOnCamera = onScreenOnlyValue.value || selectedDataProp === 'camera-depth';
+            const dependsOnCamera = onScreenOnlyValue.value || cameraDependentProps.has(selectedDataProp);
             if (!dependsOnCamera) return;
             if (!cameraMatrix.equals(lastCameraMatrix)) {
                 lastCameraMatrix.copy(cameraMatrix);
@@ -352,10 +384,12 @@ class DataPanel extends Container {
             'splat.brightness', 'splat.blackPoint', 'splat.whitePoint',
             'splat.transparency'
         ];
-        const colorProps = new Set(['f_dc_0', 'f_dc_1', 'f_dc_2', 'hue', 'saturation', 'value', 'opacity']);
+        // ColorGrade-dependent props. f_dc_* (raw DC) is intentionally absent:
+        // it inverts the engine's dcDecode and bypasses ColorGrade.
+        const colorGradeProps = new Set(['red', 'green', 'blue', 'hue', 'saturation', 'value', 'opacity']);
         colorEvents.forEach((name) => {
             events.on(name, (splat_: Splat) => {
-                if (splat_ === splat && colorProps.has(selectedDataProp)) {
+                if (splat_ === splat && colorGradeProps.has(selectedDataProp)) {
                     updateHistogram();
                 }
             });

@@ -10,13 +10,15 @@ import {
     ScopeSpace,
     Shader,
     ShaderUtils,
-    Texture
+    Texture,
+    Vec3
 } from 'playcanvas';
 
 import { vertexShader, fragmentShader } from '../shaders/select-by-range-shader';
 import { Splat } from '../splat';
 
 const identity = new Mat4();
+const zeroVec3 = new Vec3();
 
 // number of SH coefficients per RGB band, indexed by GSplatResource.shBands.
 const SH_NUM_COEFFS: { [k: number]: number } = { 0: 0, 1: 3, 2: 8, 3: 15 };
@@ -30,6 +32,7 @@ type SelectByRangeOptions = {
     entityMatrix?: Mat4;
     viewMatrix?: Mat4;
     viewProjection?: Mat4;
+    cameraPos?: Vec3;
     onScreenOnly?: boolean;
 };
 
@@ -137,6 +140,7 @@ class SelectByRange {
         const entityMatrix = options.entityMatrix ?? identity;
         const viewMatrix = options.viewMatrix ?? identity;
         const viewProjection = options.viewProjection ?? identity;
+        const cameraPos = options.cameraPos ?? zeroVec3;
         const onScreenOnly = options.onScreenOnly ? 1 : 0;
 
         // ColorGrade math, kept in sync with ColorGrade in src/color-grade.ts.
@@ -155,6 +159,7 @@ class SelectByRange {
             entityMatrix: entityMatrix.data,
             viewMatrix: viewMatrix.data,
             viewProjection: viewProjection.data,
+            cameraWorldPos: [cameraPos.x, cameraPos.y, cameraPos.z],
             onScreenOnly,
             cgScale: [
                 cgInvRange * tintClr.r * (1 + temperature),

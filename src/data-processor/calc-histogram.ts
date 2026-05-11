@@ -12,7 +12,8 @@ import {
     ScopeSpace,
     Shader,
     ShaderUtils,
-    Texture
+    Texture,
+    Vec3
 } from 'playcanvas';
 
 import { drawPointsWithShader } from './draw-points';
@@ -29,6 +30,7 @@ const GRID_DIM = 64;
 const NUM_BINS = 256;
 
 const identity = new Mat4();
+const zeroVec3 = new Vec3();
 
 // number of SH coefficients per RGB band, indexed by GSplatResource.shBands.
 const SH_NUM_COEFFS: { [k: number]: number } = { 0: 0, 1: 3, 2: 8, 3: 15 };
@@ -37,6 +39,7 @@ type CalcHistogramOptions = {
     entityMatrix?: Mat4;
     viewMatrix?: Mat4;
     viewProjection?: Mat4;
+    cameraPos?: Vec3;
     onScreenOnly?: boolean;
     numBins?: number;
 };
@@ -189,6 +192,7 @@ class CalcHistogram {
         const entityMatrix = options?.entityMatrix ?? identity;
         const viewMatrix = options?.viewMatrix ?? identity;
         const viewProjection = options?.viewProjection ?? identity;
+        const cameraPos = options?.cameraPos ?? zeroVec3;
         const onScreenOnly = options?.onScreenOnly ? 1 : 0;
 
         // ColorGrade math, kept in sync with ColorGrade in src/color-grade.ts.
@@ -207,6 +211,7 @@ class CalcHistogram {
             entityMatrix: entityMatrix.data,
             viewMatrix: viewMatrix.data,
             viewProjection: viewProjection.data,
+            cameraWorldPos: [cameraPos.x, cameraPos.y, cameraPos.z],
             onScreenOnly,
             cgScale: [
                 cgInvRange * tintClr.r * (1 + temperature),
