@@ -147,8 +147,9 @@ bool computeSplatValue(int idx, out float value, out bool selected, out bool vis
         if (clip.w <= 0.0) {
             visible = false;
         } else {
+            // OpenGL-style clip space: ndc in [-1, 1] on all axes.
             vec3 ndc = clip.xyz / clip.w;
-            if (any(greaterThan(abs(ndc.xy), vec2(1.0))) || ndc.z < 0.0 || ndc.z > 1.0) {
+            if (any(greaterThan(abs(ndc), vec3(1.0)))) {
                 visible = false;
             }
         }
