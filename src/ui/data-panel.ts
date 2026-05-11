@@ -1,20 +1,47 @@
 import { BooleanInput, Container, Label } from '@playcanvas/pcui';
 import { Mat4 } from 'playcanvas';
 
-import { ColorGrade, dcDecode } from '../color-grade';
 import { Events } from '../events';
 import { Splat } from '../splat';
-import { rgb2hsv } from './color';
 import { Histogram } from './histogram';
-import { State } from '../splat-state';
 import { localize } from './localization';
 
-const scaleFunc = (v: number) => Math.exp(v);
+// gpu propMode constants. these must match the propMode dispatch in
+// src/shaders/splat-value-shader.ts.
+const PROP_MODE: { [key: string]: number } = {
+    x: 0,
+    y: 1,
+    z: 2,
+    distance: 3,
+    'camera-depth': 4,
+    f_dc_0: 5,
+    f_dc_1: 6,
+    f_dc_2: 7,
+    opacity: 8,
+    scale_0: 9,
+    scale_1: 10,
+    scale_2: 11,
+    volume: 12,
+    'surface-area': 13,
+    rot_0: 14,
+    rot_1: 15,
+    rot_2: 16,
+    rot_3: 17,
+    hue: 18,
+    saturation: 19,
+    value: 20
+};
 
-const dataFuncs = {
-    scale_0: scaleFunc,
-    scale_1: scaleFunc,
-    scale_2: scaleFunc
+// f_rest_N maps to mode (21 + N). max 45 SH coefficients (shBands 3).
+const F_REST_BASE_MODE = 21;
+
+const SH_NUM_COEFFS: { [k: number]: number } = { 0: 0, 1: 3, 2: 8, 3: 15 };
+
+const propModeFor = (prop: string): number | undefined => {
+    if (prop in PROP_MODE) return PROP_MODE[prop];
+    const m = /^f_rest_(\d+)$/.exec(prop);
+    if (m) return F_REST_BASE_MODE + parseInt(m[1], 10);
+    return undefined;
 };
 
 class DataPanel extends Container {
@@ -169,14 +196,13 @@ class DataPanel extends Container {
                 value: localize('panel.splat-data.value')
             };
 
-            // extra prop localizations - shown when "Show All" is enabled
-            const extras: any = {
-                nx: `${localize('panel.splat-data.normal')} X`,
-                ny: `${localize('panel.splat-data.normal')} Y`,
-                nz: `${localize('panel.splat-data.normal')} Z`
-            };
-
-            for (let i = 0; i < 45; i++) {
+            // "Show All" extras: spherical harmonics coefficients, filtered by
+            // the splat's actual SH band count so we never offer a mode the GPU
+            // shader can't decode.
+            const extras: any = {};
+            const shBands = (splat.entity.gsplat.instance.resource as any).shBands ?? 0;
+            const maxFRest = (SH_NUM_COEFFS[shBands] ?? 0) * 3;
+            for (let i = 0; i < maxFRest; i++) {
                 extras[`f_rest_${i}`] = `${localize('panel.splat-data.sh')} ${i}`;
             }
 
@@ -192,13 +218,7 @@ class DataPanel extends Container {
                 Object.keys(extras).filter(p => availableProps.has(p)) :
                 [];
 
-            // collect any remaining un-localized props (except state/transform and already listed ones)
-            const listedProps = new Set([...defaultProps, ...extraProps, 'state', 'transform']);
-            const remainingProps = showAllValue.value ?
-                dataProps.filter(p => !listedProps.has(p)) :
-                [];
-
-            const allProps = [...defaultProps, ...extraProps, ...remainingProps];
+            const allProps = [...defaultProps, ...extraProps];
 
             // clear existing items
             dataListBox.dom.innerHTML = '';
@@ -246,122 +266,21 @@ class DataPanel extends Container {
         // current splat
         let splat: Splat;
 
-        // returns a function which will interpret the splat data for purposes of
-        // viewing it in the histogram.
-        // the returned values will depend on the currently selected data type:
-        //   * some value functions return the raw splat data, like 'x'.
-        //   * other value functions must transform the data for histogram visualization
-        //     (for example 'scale_0', which must be exponentiated).
-        //   * still other values are calculated/derived from multiple values of splat
-        //     data like 'volume' and 'surface area'.
-        const getValueFunc = () => {
-            // @ts-ignore
-            const dataFunc = dataFuncs[selectedDataProp];
-            const data = splat.splatData.getProp(selectedDataProp);
-            const grade = new ColorGrade(splat);
-            const c = { r: 0, g: 0, b: 0 };
-
-            const r = splat.splatData.getProp('f_dc_0') as Float32Array;
-            const g = splat.splatData.getProp('f_dc_1') as Float32Array;
-            const b = splat.splatData.getProp('f_dc_2') as Float32Array;
-
-            let func: (i: number) => number;
-            switch (selectedDataProp) {
-                case 'f_dc_0':
-                    func = (i) => {
-                        c.r = dcDecode(r[i]); c.g = dcDecode(g[i]); c.b = dcDecode(b[i]);
-                        grade.applyDC(c);
-                        return c.r;
-                    };
-                    break;
-                case 'f_dc_1':
-                    func = (i) => {
-                        c.r = dcDecode(r[i]); c.g = dcDecode(g[i]); c.b = dcDecode(b[i]);
-                        grade.applyDC(c);
-                        return c.g;
-                    };
-                    break;
-                case 'f_dc_2':
-                    func = (i) => {
-                        c.r = dcDecode(r[i]); c.g = dcDecode(g[i]); c.b = dcDecode(b[i]);
-                        grade.applyDC(c);
-                        return c.b;
-                    };
-                    break;
-                case 'hue':
-                    func = (i) => {
-                        c.r = dcDecode(r[i]); c.g = dcDecode(g[i]); c.b = dcDecode(b[i]);
-                        grade.applyDC(c);
-                        return rgb2hsv(c).h * 360;
-                    };
-                    break;
-                case 'saturation':
-                    func = (i) => {
-                        c.r = dcDecode(r[i]); c.g = dcDecode(g[i]); c.b = dcDecode(b[i]);
-                        grade.applyDC(c);
-                        return rgb2hsv(c).s;
-                    };
-                    break;
-                case 'value':
-                    func = (i) => {
-                        c.r = dcDecode(r[i]); c.g = dcDecode(g[i]); c.b = dcDecode(b[i]);
-                        grade.applyDC(c);
-                        return rgb2hsv(c).v;
-                    };
-                    break;
-                case 'opacity': {
-                    const o = splat.splatData.getProp('opacity') as Float32Array;
-                    func = i => grade.applyAlpha(o[i]);
-                    break;
-                }
-                case 'volume': {
-                    const sx = splat.splatData.getProp('scale_0');
-                    const sy = splat.splatData.getProp('scale_1');
-                    const sz = splat.splatData.getProp('scale_2');
-                    func = i => scaleFunc(sx[i]) * scaleFunc(sy[i]) * scaleFunc(sz[i]);
-                    break;
-                }
-                case 'distance': {
-                    const x = splat.splatData.getProp('x');
-                    const y = splat.splatData.getProp('y');
-                    const z = splat.splatData.getProp('z');
-                    func = i => Math.sqrt(x[i] ** 2 + y[i] ** 2 + z[i] ** 2);
-                    break;
-                }
-                case 'surface-area': {
-                    const sx = splat.splatData.getProp('scale_0');
-                    const sy = splat.splatData.getProp('scale_1');
-                    const sz = splat.splatData.getProp('scale_2');
-                    func = i => scaleFunc(sx[i]) ** 2 + scaleFunc(sy[i]) ** 2 + scaleFunc(sz[i]) ** 2;
-                    break;
-                }
-                default:
-                    func = dataFunc && data ? i => dataFunc(data[i]) : i => data[i];
-                    break;
-            }
-
-            return func;
-        };
-
-        const gpuPropMode: { [key: string]: number } = { x: 0, y: 1, z: 2, distance: 3, 'camera-depth': 4 };
         let updateToken = 0;
-        let lastValueFunc: (i: number) => number = null;
-        let lastGpuMode: number | null = null;
-        let lastGpuOnScreen = false;
+        let lastGpuMode = 0;
         const viewProjection = new Mat4();
 
         const buildGpuOpts = () => {
             const cam = splat.scene.camera.camera;
             const useOnScreen = onScreenOnlyValue.value;
-            const needsViewMatrix = selectedDataProp === 'camera-depth';
-            const opts: any = { entityMatrix: splat.entity.getWorldTransform() };
+            const opts: any = {
+                entityMatrix: splat.entity.getWorldTransform(),
+                viewMatrix: cam.viewMatrix
+            };
             if (useOnScreen) {
                 viewProjection.mul2(cam.projectionMatrix, cam.viewMatrix);
                 opts.viewProjection = viewProjection;
                 opts.onScreenOnly = true;
-            }
-            if (needsViewMatrix) {
-                opts.viewMatrix = cam.viewMatrix;
             }
             return opts;
         };
@@ -369,41 +288,24 @@ class DataPanel extends Container {
         const updateHistogram = async () => {
             if (!splat || this.hidden) return;
 
-            const state = splat.splatData.getProp('state') as Uint8Array;
-            if (!state) return;
+            const mode = propModeFor(selectedDataProp);
+            if (mode === undefined) return;
 
             const myToken = ++updateToken;
-            const mode = gpuPropMode[selectedDataProp];
+            const opts = buildGpuOpts();
+            const result = await splat.scene.dataProcessor.calcHistogram(splat, mode, opts);
+            if (myToken !== updateToken) return;
 
-            if (mode !== undefined) {
-                const opts = buildGpuOpts();
-                const result = await splat.scene.dataProcessor.calcHistogram(splat, mode, opts);
-                if (myToken !== updateToken) return;
+            lastGpuMode = mode;
 
-                lastValueFunc = null;
-                lastGpuMode = mode;
-                lastGpuOnScreen = !!opts.onScreenOnly;
-
-                histogram.setData({
-                    selected: result.selected,
-                    unselected: result.unselected,
-                    min: result.min,
-                    max: result.max,
-                    numValues: result.numValues,
-                    logScale: logScaleValue.value
-                });
-            } else {
-                const func = getValueFunc();
-                lastValueFunc = func;
-                lastGpuMode = null;
-
-                histogram.update({
-                    count: state.length,
-                    valueFunc: i => ((state[i] === 0 || state[i] === State.selected) ? func(i) : undefined),
-                    selectedFunc: i => state[i] === State.selected,
-                    logScale: logScaleValue.value
-                });
-            }
+            histogram.setData({
+                selected: result.selected,
+                unselected: result.unselected,
+                min: result.min,
+                max: result.max,
+                numValues: result.numValues,
+                logScale: logScaleValue.value
+            });
         };
 
         events.on('splat.stateChanged', (splat_: Splat) => {
@@ -424,14 +326,14 @@ class DataPanel extends Container {
             }
         });
 
-        // refresh on camera settle when current prop depends on the camera
+        // refresh on camera settle when the histogram depends on the camera.
+        // anything with onScreenOnly enabled is camera-dependent, plus
+        // camera-depth itself.
         const CAMERA_SETTLE_MS = 150;
         let cameraTimer: number | null = null;
         const lastCameraMatrix = new Mat4();
         events.on('prerender', (cameraMatrix: Mat4) => {
-            const dependsOnCamera =
-                (onScreenOnlyValue.value && positionProps.has(selectedDataProp)) ||
-                selectedDataProp === 'camera-depth';
+            const dependsOnCamera = onScreenOnlyValue.value || selectedDataProp === 'camera-depth';
             if (!dependsOnCamera) return;
             if (!cameraMatrix.equals(lastCameraMatrix)) {
                 lastCameraMatrix.copy(cameraMatrix);
@@ -549,35 +451,21 @@ class DataPanel extends Container {
 
         histogram.events.on('select', async (op: string, start: number, end: number) => {
             svg.style.display = 'none';
+            if (!splat) return;
 
-            const state = splat.splatData.getProp('state') as Uint8Array;
-            let func: (i: number) => number;
-            let visible: (i: number) => boolean | null = null;
-
-            if (lastGpuMode !== null) {
-                // GPU path needs a one-shot per-splat readback to build the predicate
-                const opts = buildGpuOpts();
-                const data = await splat.scene.dataProcessor.calcProperty(splat, lastGpuMode, opts);
-                func = i => data[i * 4];
-                if (lastGpuOnScreen) {
-                    visible = i => data[i * 4 + 1] !== 0;
-                }
-            } else {
-                if (!lastValueFunc) return;
-                func = lastValueFunc;
-            }
-
-            events.fire('select.pred', op, (i: number) => {
-                if (state[i] !== 0 && state[i] !== State.selected) {
-                    return false;
-                }
-                if (visible && !visible(i)) {
-                    return false;
-                }
-                const value = func(i);
-                const bucket = histogram.histogram.valueToBucket(value);
-                return bucket >= start && bucket <= end;
+            // GPU computes the predicate. result is 1 byte per splat: 255 for
+            // splats that fall within the bucket range and pass all visibility
+            // / state checks, 0 otherwise.
+            const data = await splat.scene.dataProcessor.selectByRange(splat, lastGpuMode, {
+                ...buildGpuOpts(),
+                min: histogram.histogram.minValue,
+                max: histogram.histogram.maxValue,
+                numBins: histogram.histogram.bins.length,
+                rangeStart: start,
+                rangeEnd: end
             });
+
+            events.fire('select.pred', op, (i: number) => data[i] === 255);
         });
     }
 }

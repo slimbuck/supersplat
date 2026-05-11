@@ -11,54 +11,9 @@ class HistogramData {
         for (let i = 0; i < numBins; ++i) {
             this.bins.push({ selected: 0, unselected: 0 });
         }
-    }
-
-    calc(count: number, valueFunc: (v: number) => number | undefined, selectedFunc: (v: number) => boolean) {
-        // clear bins
-        const bins = this.bins;
-        for (let i = 0; i < bins.length; ++i) {
-            bins[i].selected = bins[i].unselected = 0;
-        }
-
-        // calculate min, max
-        let min, max, i;
-        for (i = 0; i < count; i++) {
-            const v = valueFunc(i);
-            if (v !== undefined && isFinite(v)) {
-                min = max = v;
-                break;
-            }
-        }
-
-        // no data
-        if (i === count) {
-            return;
-        }
-
-        // continue min/max calc
-        for (; i < count; i++) {
-            const v = valueFunc(i);
-            if (v !== undefined && isFinite(v)) {
-                if (v < min) min = v; else if (v > max) max = v;
-            }
-        }
-
-        // fill bins
-        for (let i = 0; i < count; i++) {
-            const v = valueFunc(i);
-            if (v !== undefined && isFinite(v)) {
-                const n = min === max ? 0 : (v - min) / (max - min);
-                const bin = Math.min(bins.length - 1, Math.floor(n * bins.length));
-                if (selectedFunc(i)) {
-                    bins[bin].selected++;
-                } else {
-                    bins[bin].unselected++;
-                }
-            }
-        }
-        this.numValues = bins.reduce((t, v) => t + v.selected + v.unselected, 0);
-        this.minValue = min;
-        this.maxValue = max;
+        this.numValues = 0;
+        this.minValue = 0;
+        this.maxValue = 0;
     }
 
     bucketValue(bucket: number) {
@@ -73,13 +28,6 @@ class HistogramData {
         const n = this.minValue === this.maxValue ? 0 : (value - this.minValue) / (this.maxValue - this.minValue);
         return Math.min(this.bins.length - 1, Math.floor(n * this.bins.length));
     }
-}
-
-interface UpdateOptions {
-    count: number;
-    valueFunc: (v: number) => number | undefined;
-    selectedFunc: (v: number) => boolean;
-    logScale?: boolean
 }
 
 interface SetDataOptions {
@@ -245,11 +193,6 @@ class Histogram {
         }
 
         context.putImageData(pixelData, 0, 0);
-    }
-
-    update(options: UpdateOptions) {
-        this.histogram.calc(options.count, options.valueFunc, options.selectedFunc);
-        this.render(options.logScale);
     }
 
     setData(options: SetDataOptions) {

@@ -13,8 +13,8 @@ import {
 import { CalcBound } from './calc-bound';
 import { CalcHistogram, CalcHistogramOptions } from './calc-histogram';
 import { CalcPositions } from './calc-positions';
-import { CalcProperty, CalcPropertyOptions } from './calc-property';
 import { Intersect, IntersectOptions } from './intersect';
+import { SelectByRange, SelectByRangeOptions } from './select-by-range';
 import { Splat } from '../splat';
 
 const resolve = (scope: ScopeSpace, values: any) => {
@@ -35,8 +35,8 @@ class DataProcessor {
     private intersectImpl: Intersect;
     private calcBoundImpl: CalcBound;
     private calcPositionsImpl: CalcPositions;
-    private calcPropertyImpl: CalcProperty;
     private calcHistogramImpl: CalcHistogram;
+    private selectByRangeImpl: SelectByRange;
 
     constructor(device: GraphicsDevice) {
         this.device = device;
@@ -65,8 +65,8 @@ class DataProcessor {
         this.intersectImpl = new Intersect(device);
         this.calcBoundImpl = new CalcBound(device);
         this.calcPositionsImpl = new CalcPositions(device);
-        this.calcPropertyImpl = new CalcProperty(device);
         this.calcHistogramImpl = new CalcHistogram(device);
+        this.selectByRangeImpl = new SelectByRange(device);
     }
 
     // enqueue async operations to run one at a time
@@ -91,14 +91,16 @@ class DataProcessor {
         return this.enqueue(() => this.calcPositionsImpl.run(splat));
     }
 
-    // calculate a per-splat scalar property (mode: 0=x, 1=y, 2=z, 3=distance)
-    calcProperty(splat: Splat, mode: number, options?: CalcPropertyOptions) {
-        return this.enqueue(() => this.calcPropertyImpl.run(splat, mode, options));
-    }
-
     // calculate histogram (bin counts + min/max) entirely on GPU
     calcHistogram(splat: Splat, mode: number, options?: CalcHistogramOptions) {
         return this.enqueue(() => this.calcHistogramImpl.run(splat, mode, options));
+    }
+
+    // compute a per-splat byte mask (255 = in range and visible, 0 = not) for
+    // the given histogram bucket range. mode matches the propMode dispatch in
+    // src/shaders/splat-value-shader.ts (0..20 = built-in props, 21+N = f_rest_N).
+    selectByRange(splat: Splat, mode: number, options: SelectByRangeOptions) {
+        return this.enqueue(() => this.selectByRangeImpl.run(splat, mode, options));
     }
 
     copyRt(source: RenderTarget, dest: RenderTarget) {
@@ -114,5 +116,5 @@ class DataProcessor {
 }
 
 export { DataProcessor };
-export type { IntersectOptions, CalcPropertyOptions, CalcHistogramOptions };
+export type { IntersectOptions, CalcHistogramOptions, SelectByRangeOptions };
 export { MaskOptions, RectOptions, SphereOptions, BoxOptions } from './intersect';

@@ -30,6 +30,9 @@ const NUM_BINS = 256;
 
 const identity = new Mat4();
 
+// number of SH coefficients per RGB band, indexed by GSplatResource.shBands.
+const SH_NUM_COEFFS: { [k: number]: number } = { 0: 0, 1: 3, 2: 8, 3: 15 };
+
 type CalcHistogramOptions = {
     entityMatrix?: Mat4;
     viewMatrix?: Mat4;
@@ -52,12 +55,18 @@ const resolve = (scope: ScopeSpace, values: any) => {
     }
 };
 
+const getShBands = (splat: Splat): number => {
+    return (splat.entity.gsplat.instance.resource as any).shBands ?? 0;
+};
+
 class CalcHistogram {
     private device: GraphicsDevice;
 
-    private tileShader: Shader = null;
+    // shaders are compiled per SH_BANDS value so that each variant declares only
+    // the SH samplers it actually reads. reduceShader has no SH dependence.
+    private tileShaders: Map<number, Shader> = new Map();
+    private binShaders: Map<number, Shader> = new Map();
     private reduceShader: Shader = null;
-    private binShaderRef: Shader = null;
 
     private tileTex: Texture = null;
     private tileRT: RenderTarget = null;
@@ -66,7 +75,6 @@ class CalcHistogram {
     private binTex: Texture = null;
     private binRT: RenderTarget = null;
 
-    private tileData = new Float32Array(GRID_DIM * GRID_DIM * 4);
     private minMaxData = new Float32Array(4);
     private binData = new Float32Array(NUM_BINS * 4);
 
@@ -82,27 +90,15 @@ class CalcHistogram {
         );
     }
 
-    private ensureResources() {
+    private ensureSharedResources() {
         const { device } = this;
 
-        if (!this.tileShader) {
-            this.tileShader = ShaderUtils.createShader(device, {
-                uniqueName: 'histTileMinMax',
-                attributes: { vertex_position: SEMANTIC_POSITION },
-                vertexGLSL: fullscreenVS,
-                fragmentGLSL: tileMinMaxFS
-            });
+        if (!this.reduceShader) {
             this.reduceShader = ShaderUtils.createShader(device, {
                 uniqueName: 'histFinalReduce',
                 attributes: { vertex_position: SEMANTIC_POSITION },
                 vertexGLSL: fullscreenVS,
                 fragmentGLSL: finalReduceFS
-            });
-            this.binShaderRef = ShaderUtils.createShader(device, {
-                uniqueName: 'histBin',
-                attributes: { vertex_position: SEMANTIC_POSITION },
-                vertexGLSL: binVS,
-                fragmentGLSL: binFS
             });
         }
 
@@ -142,21 +138,67 @@ class CalcHistogram {
         }
     }
 
+    private getTileShader(shBands: number): Shader {
+        let shader = this.tileShaders.get(shBands);
+        if (!shader) {
+            const defines = new Map<string, string>();
+            defines.set('SH_BANDS', `${shBands}`);
+            shader = ShaderUtils.createShader(this.device, {
+                uniqueName: `histTileMinMax_SH${shBands}`,
+                attributes: { vertex_position: SEMANTIC_POSITION },
+                vertexGLSL: fullscreenVS,
+                fragmentGLSL: tileMinMaxFS,
+                fragmentDefines: defines
+            });
+            this.tileShaders.set(shBands, shader);
+        }
+        return shader;
+    }
+
+    private getBinShader(shBands: number): Shader {
+        let shader = this.binShaders.get(shBands);
+        if (!shader) {
+            const defines = new Map<string, string>();
+            defines.set('SH_BANDS', `${shBands}`);
+            shader = ShaderUtils.createShader(this.device, {
+                uniqueName: `histBin_SH${shBands}`,
+                attributes: { vertex_position: SEMANTIC_POSITION },
+                vertexGLSL: binVS,
+                fragmentGLSL: binFS,
+                vertexDefines: defines
+            });
+            this.binShaders.set(shBands, shader);
+        }
+        return shader;
+    }
+
     private setSplatUniforms(splat: Splat, mode: number, options?: CalcHistogramOptions) {
         const { scope } = this.device;
         const numSplats = splat.splatData.numSplats;
-        const transformA = (splat.entity.gsplat.instance.resource as any).getTexture('transformA');
+        const resource = splat.entity.gsplat.instance.resource as any;
+        const transformA = resource.getTexture('transformA');
+        const transformB = resource.getTexture('transformB');
+        const splatColor = resource.getTexture('splatColor');
         const splatTransform = splat.transformTexture;
         const transformPalette = splat.transformPalette.texture;
         const splatState = splat.stateTexture;
+
+        const shBands = getShBands(splat);
+        const numCoeffs = SH_NUM_COEFFS[shBands] ?? 0;
 
         const entityMatrix = options?.entityMatrix ?? identity;
         const viewMatrix = options?.viewMatrix ?? identity;
         const viewProjection = options?.viewProjection ?? identity;
         const onScreenOnly = options?.onScreenOnly ? 1 : 0;
 
-        resolve(scope, {
+        // ColorGrade math, kept in sync with ColorGrade in src/color-grade.ts.
+        const { tintClr, temperature, saturation, brightness, blackPoint, whitePoint, transparency } = splat;
+        const cgInvRange = 1 / (whitePoint - blackPoint);
+
+        const values: any = {
             transformA,
+            transformB,
+            splatColor,
             splatTransform,
             transformPalette,
             splatState,
@@ -165,8 +207,30 @@ class CalcHistogram {
             entityMatrix: entityMatrix.data,
             viewMatrix: viewMatrix.data,
             viewProjection: viewProjection.data,
-            onScreenOnly
-        });
+            onScreenOnly,
+            cgScale: [
+                cgInvRange * tintClr.r * (1 + temperature),
+                cgInvRange * tintClr.g,
+                cgInvRange * tintClr.b * (1 - temperature)
+            ],
+            cgOffset: -blackPoint + brightness,
+            cgSaturation: saturation,
+            transparency
+        };
+
+        if (shBands > 0) {
+            values.splatSH_1to3 = resource.getTexture('splatSH_1to3');
+            values.shNumCoeffs = numCoeffs;
+        }
+        if (shBands > 1) {
+            values.splatSH_4to7 = resource.getTexture('splatSH_4to7');
+            values.splatSH_8to11 = resource.getTexture('splatSH_8to11');
+        }
+        if (shBands > 2) {
+            values.splatSH_12to15 = resource.getTexture('splatSH_12to15');
+        }
+
+        resolve(scope, values);
 
         return numSplats;
     }
@@ -190,9 +254,13 @@ class CalcHistogram {
     }
 
     async run(splat: Splat, mode: number, options?: CalcHistogramOptions): Promise<CalcHistogramResult> {
-        this.ensureResources();
+        this.ensureSharedResources();
         const { device } = this;
         const { scope } = device;
+
+        const shBands = getShBands(splat);
+        const tileShader = this.getTileShader(shBands);
+        const binShader = this.getBinShader(shBands);
 
         const numSplats = this.setSplatUniforms(splat, mode, options);
         const numBins = options?.numBins ?? NUM_BINS;
@@ -203,7 +271,7 @@ class CalcHistogram {
 
         // pass 1: tile min/max (fullscreen quad over GRID_DIM x GRID_DIM)
         device.setBlendState(BlendState.NOBLEND);
-        drawQuadWithShader(device, this.tileRT, this.tileShader);
+        drawQuadWithShader(device, this.tileRT, tileShader);
 
         // pass 2: final reduce 64x64 → 1x1
         scope.resolve('inputTex').setValue(this.tileTex);
@@ -219,7 +287,7 @@ class CalcHistogram {
         scope.resolve('minMax').setValue(this.minMaxTex);
         scope.resolve('numBins').setValue(numBins);
 
-        drawPointsWithShader(device, this.binRT, this.binShaderRef, numSplats, this.additiveBlend);
+        drawPointsWithShader(device, this.binRT, binShader, numSplats, this.additiveBlend);
 
         // readback minMax (8 bytes) and bins (4 KB)
         await this.minMaxTex.read(0, 0, 1, 1, {

@@ -1,61 +1,4 @@
-// shared GLSL: per-splat (value, flag) computation
-// flag: 0 = skip (out-of-bounds, locked, deleted, off-screen)
-//       1 = unselected (state == 0)
-//       2 = selected   (state == 1)
-const computeValueFlagGLSL = /* glsl */ `
-    uniform highp usampler2D transformA;
-    uniform highp usampler2D splatTransform;
-    uniform sampler2D transformPalette;
-    uniform sampler2D splatState;
-    uniform ivec2 splat_params;
-    uniform int propMode;
-    uniform mat4 entityMatrix;
-    uniform mat4 viewMatrix;
-    uniform mat4 viewProjection;
-    uniform int onScreenOnly;
-
-    vec2 computeValueFlag(int idx) {
-        if (idx >= splat_params.y) return vec2(0.0, 0.0);
-        ivec2 uv = ivec2(idx % splat_params.x, idx / splat_params.x);
-
-        int s = int(texelFetch(splatState, uv, 0).r * 255.0 + 0.5);
-        bool sel = s == 1;
-        bool clean = s == 0;
-        if (!(sel || clean)) return vec2(0.0, 0.0);
-
-        vec3 c = uintBitsToFloat(texelFetch(transformA, uv, 0).xyz);
-        uint ti = texelFetch(splatTransform, uv, 0).r;
-        if (ti > 0u) {
-            int u = int(ti % 512u) * 3;
-            int v = int(ti / 512u);
-            mat3x4 t;
-            t[0] = texelFetch(transformPalette, ivec2(u,     v), 0);
-            t[1] = texelFetch(transformPalette, ivec2(u + 1, v), 0);
-            t[2] = texelFetch(transformPalette, ivec2(u + 2, v), 0);
-            c = vec4(c, 1.0) * t;
-        }
-
-        vec3 world = (entityMatrix * vec4(c, 1.0)).xyz;
-
-        float val;
-        if (propMode == 0)      val = world.x;
-        else if (propMode == 1) val = world.y;
-        else if (propMode == 2) val = world.z;
-        else if (propMode == 3) val = length(world);
-        else                    val = -(viewMatrix * vec4(world, 1.0)).z;
-
-        if (onScreenOnly == 1) {
-            vec4 clip = viewProjection * vec4(world, 1.0);
-            if (clip.w <= 0.0) return vec2(0.0, 0.0);
-            vec3 ndc = clip.xyz / clip.w;
-            if (any(greaterThan(abs(ndc.xy), vec2(1.0))) || ndc.z < 0.0 || ndc.z > 1.0) {
-                return vec2(0.0, 0.0);
-            }
-        }
-
-        return vec2(val, sel ? 2.0 : 1.0);
-    }
-`;
+import { computeSplatValueGLSL } from './splat-value-shader';
 
 const fullscreenVS = /* glsl */ `
     attribute vec2 vertex_position;
@@ -67,7 +10,7 @@ const fullscreenVS = /* glsl */ `
 // pass 1: tile min/max
 // each fragment owns a contiguous range of splat indices and reduces them inline
 const tileMinMaxFS = /* glsl */ `
-    ${computeValueFlagGLSL}
+    ${computeSplatValueGLSL}
 
     uniform int tileSize;
     uniform int gridDim;
@@ -86,10 +29,13 @@ const tileMinMaxFS = /* glsl */ `
         for (int k = 0; k < MAX_TILE_SIZE; k++) {
             int idx = baseIdx + k;
             if (idx >= endIdx) break;
-            vec2 vf = computeValueFlag(idx);
-            if (vf.y == 0.0) continue;
-            minVal = min(minVal, vf.x);
-            maxVal = max(maxVal, vf.x);
+            float val;
+            bool sel;
+            bool vis;
+            bool valid = computeSplatValue(idx, val, sel, vis);
+            if (!valid || !vis) continue;
+            minVal = min(minVal, val);
+            maxVal = max(maxVal, val);
         }
 
         gl_FragColor = vec4(minVal, maxVal, 0.0, 0.0);
@@ -123,7 +69,7 @@ const finalReduceFS = /* glsl */ `
 
 // pass 3: bin counting (point rendering, additive blending)
 const binVS = /* glsl */ `
-    ${computeValueFlagGLSL}
+    ${computeSplatValueGLSL}
 
     uniform sampler2D minMax;
     uniform int numBins;
@@ -131,10 +77,14 @@ const binVS = /* glsl */ `
     varying float v_flag;
 
     void main(void) {
-        vec2 vf = computeValueFlag(gl_VertexID);
-        v_flag = vf.y;
+        float val;
+        bool sel;
+        bool vis;
+        bool valid = computeSplatValue(gl_VertexID, val, sel, vis);
+        bool include = valid && vis;
+        v_flag = include ? (sel ? 2.0 : 1.0) : 0.0;
 
-        if (vf.y == 0.0) {
+        if (!include) {
             gl_Position = vec4(2.0, 2.0, 0.0, 1.0);
             gl_PointSize = 0.0;
             return;
@@ -143,7 +93,7 @@ const binVS = /* glsl */ `
         vec2 mm = texelFetch(minMax, ivec2(0, 0), 0).rg;
         float minV = mm.x;
         float maxV = mm.y;
-        float n = (maxV == minV) ? 0.0 : (vf.x - minV) / (maxV - minV);
+        float n = (maxV == minV) ? 0.0 : (val - minV) / (maxV - minV);
         int bin = clamp(int(n * float(numBins)), 0, numBins - 1);
 
         float xNDC = (float(bin) + 0.5) / float(numBins) * 2.0 - 1.0;
