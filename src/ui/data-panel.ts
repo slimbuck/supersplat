@@ -286,6 +286,7 @@ class DataPanel extends Container {
         let splat: Splat;
 
         let updateToken = 0;
+        let selectToken = 0;
         let lastGpuMode = 0;
         const viewProjection = new Mat4();
 
@@ -329,8 +330,13 @@ class DataPanel extends Container {
         };
 
         events.on('splat.stateChanged', (splat_: Splat) => {
-            splat = splat_;
-            updateHistogram();
+            // only react when the change is for the splat we're currently
+            // displaying. otherwise a pending updateState fired by another
+            // splat (e.g. from import or a deferred edit) would silently swap
+            // our `splat` mid-drag and desync an in-flight histogram select.
+            if (splat_ === splat) {
+                updateHistogram();
+            }
         });
 
         // position-dependent props: position itself, distance, camera-depth,
@@ -487,17 +493,33 @@ class DataPanel extends Container {
             svg.style.display = 'none';
             if (!splat) return;
 
+            // capture everything we depend on synchronously, before any
+            // `await`, so a concurrent updateHistogram / camera-settle / splat
+            // switch can't change the meaning of this drag mid-flight.
+            const targetSplat = splat;
+            const mode = lastGpuMode;
+            const myToken = ++selectToken;
+            const minValue = histogram.histogram.minValue;
+            const maxValue = histogram.histogram.maxValue;
+            const numBins = histogram.histogram.bins.length;
+
             // GPU computes the predicate. result is 1 byte per splat: 255 for
             // splats that fall within the bucket range and pass all visibility
             // / state checks, 0 otherwise.
-            const data = await splat.scene.dataProcessor.selectByRange(splat, lastGpuMode, {
+            const data = await targetSplat.scene.dataProcessor.selectByRange(targetSplat, mode, {
                 ...buildGpuOpts(),
-                min: histogram.histogram.minValue,
-                max: histogram.histogram.maxValue,
-                numBins: histogram.histogram.bins.length,
+                min: minValue,
+                max: maxValue,
+                numBins,
                 rangeStart: start,
                 rangeEnd: end
             });
+
+            // drop the result if the user started another drag (superseded) or
+            // switched away from this splat while we were waiting on the GPU.
+            // applying a stale mask would either be a no-op or, worse, mutate
+            // a different splat's selection state.
+            if (myToken !== selectToken || splat !== targetSplat) return;
 
             events.fire('select.pred', op, (i: number) => data[i] === 255);
         });

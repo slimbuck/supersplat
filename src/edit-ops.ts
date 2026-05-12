@@ -115,10 +115,18 @@ class SelectOp extends StateOp {
         // wrap sorted IDs in a cursor-based predicate
         const pred = filter instanceof Uint32Array ? sortedPredicate(filter) : filter;
 
+        // 'set' must also exclude locked/deleted splats: the supplied `pred`
+        // may come from an async GPU mask that was computed against a slightly
+        // stale stateTexture, so it can return true for splats that have since
+        // become locked or deleted. without this guard, BitOp.TOGGLE would
+        // flip the selected bit on them and corrupt their state (e.g. into
+        // 3 = locked+selected or 5 = deleted+selected). 'add' and 'remove'
+        // are already safe via their state[i] === 0 / === selected check.
         const preds = {
             add: (i: number) => pred(i) && state[i] === 0,
             remove: (i: number) => pred(i) && state[i] === State.selected,
-            set: (i: number) => (state[i] === State.selected) !== pred(i)
+            set: (i: number) => (state[i] === 0 || state[i] === State.selected) &&
+                                ((state[i] === State.selected) !== pred(i))
         };
 
         super(splat, IndexRanges.fromPredicate(splatData.numSplats, preds[op]), State.selected, bitOp);
