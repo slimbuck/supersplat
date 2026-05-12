@@ -1,6 +1,7 @@
 import { BooleanInput, Container, Label } from '@playcanvas/pcui';
 import { Mat4 } from 'playcanvas';
 
+import { Element } from '../element';
 import { Events } from '../events';
 import { Splat } from '../splat';
 import { Histogram } from './histogram';
@@ -50,6 +51,47 @@ const propModeFor = (prop: string): number | undefined => {
     const m = /^f_rest_(\d+)$/.exec(prop);
     if (m) return F_REST_BASE_MODE + parseInt(m[1], 10);
     return undefined;
+};
+
+// final-color (DC + evaluated SH for current view direction) — depends on
+// world-space splat position, camera position and ColorGrade.
+const isFinalColorMode = (mode: number) => {
+    return (mode >= 5 && mode <= 7) || (mode >= 18 && mode <= 20);
+};
+
+// what kinds of state changes affect a given prop's histogram. mirrors the
+// previous per-event filtering, but consulted only inside hash().
+const isCameraDependentMode = (mode: number) => mode === 4 /* camera-depth */ || isFinalColorMode(mode);
+const isPositionDependentMode = (mode: number) => {
+    return mode === 0 || mode === 1 || mode === 2 || // x / y / z
+        mode === 3 || mode === 4 ||                  // distance / camera-depth
+        isFinalColorMode(mode);
+};
+// ColorGrade-dependent. f_dc_* (raw DC, modes 66..68) bypasses ColorGrade.
+const isColorGradeDependentMode = (mode: number) => mode === 8 /* opacity */ || isFinalColorMode(mode);
+
+// every input that can require a histogram refresh. subscribers update one
+// field and call tick(); the hash collapses no-op changes into a fast path
+// and lets the existing per-prop filtering live in pure hash().
+type HistogramInputs = {
+    splatId: number;
+    mode: number;
+    onScreenOnly: boolean;
+    logScale: boolean;
+    cameraVersion: number;
+    stateVersion: number;
+    colorGradeVersion: number;
+    positionsVersion: number;
+};
+
+const hashInputs = (i: HistogramInputs): string => {
+    const m = i.mode;
+    const camMatters = i.onScreenOnly || isCameraDependentMode(m);
+    const posMatters = isPositionDependentMode(m);
+    const cgMatters = isColorGradeDependentMode(m);
+    return `${i.splatId}|${m}|${i.onScreenOnly ? 1 : 0}|${i.logScale ? 1 : 0}|` +
+        `${camMatters ? i.cameraVersion : 0}|${i.stateVersion}|` +
+        `${cgMatters ? i.colorGradeVersion : 0}|${posMatters ? i.positionsVersion : 0}`;
 };
 
 class DataPanel extends Container {
@@ -252,11 +294,13 @@ class DataPanel extends Container {
 
                 item.addEventListener('click', () => {
                     selectedDataProp = prop;
+                    // eslint-disable-next-line no-use-before-define
+                    inputs.mode = propModeFor(prop) ?? 0;
                     dataListBox.dom.querySelectorAll('.data-list-item').forEach((el) => {
                         el.classList.remove('active');
                     });
                     item.classList.add('active');
-                    updateHistogram(); // eslint-disable-line no-use-before-define
+                    tick(); // eslint-disable-line no-use-before-define
                 });
 
                 dataListBox.dom.appendChild(item);
@@ -285,20 +329,34 @@ class DataPanel extends Container {
         // current splat
         let splat: Splat;
 
-        let updateToken = 0;
-        let selectToken = 0;
+        let pendingToken = 0;
         let lastGpuMode = 0;
+        let lastHash = '';
         const viewProjection = new Mat4();
+
+        // single source of truth for everything that could trigger a refresh.
+        // subscribers update one field and call tick(); tick hashes the inputs
+        // (with per-mode dependency filtering) and only schedules a GPU pass
+        // when the hash actually changed.
+        const inputs: HistogramInputs = {
+            splatId: -1,
+            mode: 0,
+            onScreenOnly: false,
+            logScale: false,
+            cameraVersion: 0,
+            stateVersion: 0,
+            colorGradeVersion: 0,
+            positionsVersion: 0
+        };
 
         const buildGpuOpts = () => {
             const cam = splat.scene.camera.camera;
-            const useOnScreen = onScreenOnlyValue.value;
             const opts: any = {
                 entityMatrix: splat.entity.getWorldTransform(),
                 viewMatrix: cam.viewMatrix,
                 cameraPos: splat.scene.camera.position
             };
-            if (useOnScreen) {
+            if (inputs.onScreenOnly) {
                 viewProjection.mul2(cam.projectionMatrix, cam.viewMatrix);
                 opts.viewProjection = viewProjection;
                 opts.onScreenOnly = true;
@@ -306,97 +364,98 @@ class DataPanel extends Container {
             return opts;
         };
 
-        const updateHistogram = async () => {
+        const scheduleUpdate = () => {
             if (!splat || this.hidden) return;
-
-            const mode = propModeFor(selectedDataProp);
-            if (mode === undefined) return;
-
-            const myToken = ++updateToken;
+            const mode = inputs.mode;
             const opts = buildGpuOpts();
-            const result = await splat.scene.dataProcessor.calcHistogram(splat, mode, opts);
-            if (myToken !== updateToken) return;
+            // pendingToken collapses bursts of triggers within a single queue
+            // tick (e.g. rapid camera-settle + color-grade) so only the latest
+            // intent issues a GPU pass. ordering vs select / history mutations
+            // is provided by the shared command queue.
+            const myToken = ++pendingToken;
+            splat.scene.commandQueue.enqueue(async () => {
+                if (myToken !== pendingToken) return;
+                const result = await splat.scene.dataProcessor.calcHistogram(splat, mode, opts);
+                if (myToken !== pendingToken) return;
 
-            lastGpuMode = mode;
+                lastGpuMode = mode;
 
-            histogram.setData({
-                selected: result.selected,
-                unselected: result.unselected,
-                min: result.min,
-                max: result.max,
-                numValues: result.numValues,
-                logScale: logScaleValue.value
+                histogram.setData({
+                    selected: result.selected,
+                    unselected: result.unselected,
+                    min: result.min,
+                    max: result.max,
+                    numValues: result.numValues,
+                    logScale: inputs.logScale
+                });
             });
+        };
+
+        const tick = () => {
+            if (!splat || this.hidden) return;
+            const h = hashInputs(inputs);
+            if (h === lastHash) return;
+            lastHash = h;
+            scheduleUpdate();
         };
 
         events.on('splat.stateChanged', (splat_: Splat) => {
             // only react when the change is for the splat we're currently
-            // displaying. otherwise a pending updateState fired by another
-            // splat (e.g. from import or a deferred edit) would silently swap
-            // our `splat` mid-drag and desync an in-flight histogram select.
+            // displaying. another splat's stateChanged is irrelevant to this
+            // histogram.
             if (splat_ === splat) {
-                updateHistogram();
+                inputs.stateVersion++;
+                tick();
             }
         });
 
-        // position-dependent props: position itself, distance, camera-depth,
-        // and the view-direction-dependent final-color props (red/green/blue/
-        // hue/saturation/value), since their value depends on world position.
-        const positionProps = new Set([
-            'x', 'y', 'z', 'distance', 'camera-depth',
-            'red', 'green', 'blue', 'hue', 'saturation', 'value'
-        ]);
         events.on('splat.positionsChanged', (splat_: Splat) => {
-            if (splat_ === splat && positionProps.has(selectedDataProp)) {
-                updateHistogram();
+            if (splat_ === splat) {
+                inputs.positionsVersion++;
+                tick();
             }
         });
 
         events.on('splat.moved', (splat_: Splat) => {
-            if (splat_ === splat && positionProps.has(selectedDataProp)) {
-                updateHistogram();
+            if (splat_ === splat) {
+                inputs.positionsVersion++;
+                tick();
             }
         });
 
-        // refresh on camera settle when the histogram depends on the camera.
-        // - onScreenOnly enables visibility culling against the frustum
-        // - camera-depth is camera-relative
-        // - red/green/blue/hue/saturation/value sample evaluated SH which
-        //   depends on the per-splat view direction
-        const cameraDependentProps = new Set([
-            'camera-depth',
-            'red', 'green', 'blue', 'hue', 'saturation', 'value'
-        ]);
+        // bump cameraVersion only after the camera has stopped moving for
+        // CAMERA_SETTLE_MS, so a single drag doesn't spam GPU passes. whether
+        // the bump triggers a refresh is decided per-prop inside hashInputs.
         const CAMERA_SETTLE_MS = 150;
         let cameraTimer: number | null = null;
         const lastCameraMatrix = new Mat4();
         events.on('prerender', (cameraMatrix: Mat4) => {
-            const dependsOnCamera = onScreenOnlyValue.value || cameraDependentProps.has(selectedDataProp);
-            if (!dependsOnCamera) return;
             if (!cameraMatrix.equals(lastCameraMatrix)) {
                 lastCameraMatrix.copy(cameraMatrix);
                 if (cameraTimer !== null) clearTimeout(cameraTimer);
                 cameraTimer = window.setTimeout(() => {
                     cameraTimer = null;
-                    updateHistogram();
+                    inputs.cameraVersion++;
+                    tick();
                 }, CAMERA_SETTLE_MS);
             }
         });
 
-        onScreenOnlyValue.on('change', updateHistogram);
+        onScreenOnlyValue.on('change', () => {
+            inputs.onScreenOnly = onScreenOnlyValue.value;
+            tick();
+        });
 
         const colorEvents = [
             'splat.tintClr', 'splat.temperature', 'splat.saturation',
             'splat.brightness', 'splat.blackPoint', 'splat.whitePoint',
             'splat.transparency'
         ];
-        // ColorGrade-dependent props. f_dc_* (raw DC) is intentionally absent:
-        // it inverts the engine's dcDecode and bypasses ColorGrade.
-        const colorGradeProps = new Set(['red', 'green', 'blue', 'hue', 'saturation', 'value', 'opacity']);
         colorEvents.forEach((name) => {
             events.on(name, (splat_: Splat) => {
-                if (splat_ === splat && colorGradeProps.has(selectedDataProp)) {
-                    updateHistogram();
+                if (splat_ === splat) {
+                    inputs.colorGradeVersion++;
+                    tick();
                 }
             });
         });
@@ -404,16 +463,21 @@ class DataPanel extends Container {
         events.on('selection.changed', (selection: Element) => {
             if (selection instanceof Splat) {
                 splat = selection;
+                inputs.splatId = splat.uid;
+                inputs.mode = propModeFor(selectedDataProp) ?? 0;
                 populateDataSelector(splat);
-                updateHistogram();
+                tick();
             }
         });
 
         events.on('statusBar.panelChanged', (panel: string | null) => {
             if (panel === 'splatData') {
-                // defer update to next frame so the panel is visible first
+                // defer until panel is visible (this.hidden flips)
                 requestAnimationFrame(() => {
-                    updateHistogram();
+                    // panel just became visible; clear the dedupe hash so the
+                    // next tick definitely fires.
+                    lastHash = '';
+                    tick();
 
                     // scroll the selected list item into view
                     const activeItem = dataListBox.dom.querySelector('.data-list-item.active');
@@ -424,7 +488,10 @@ class DataPanel extends Container {
             }
         });
 
-        logScaleValue.on('change', updateHistogram);
+        logScaleValue.on('change', () => {
+            inputs.logScale = logScaleValue.value;
+            tick();
+        });
 
         showAllValue.on('change', () => {
             if (splat) {
@@ -489,39 +556,38 @@ class DataPanel extends Container {
             svg.style.display = 'inline';
         });
 
-        histogram.events.on('select', async (op: string, start: number, end: number) => {
+        histogram.events.on('select', (op: string, start: number, end: number) => {
             svg.style.display = 'none';
             if (!splat) return;
 
-            // capture everything we depend on synchronously, before any
-            // `await`, so a concurrent updateHistogram / camera-settle / splat
-            // switch can't change the meaning of this drag mid-flight.
+            // capture state synchronously at drag-end and enqueue the whole
+            // gpu pass + select fire on the shared command queue. queue ordering
+            // guarantees this select runs after any in-flight histogram update
+            // and that any subsequent operation runs after this select's
+            // edit.add lands in history. no defensive token / target-splat
+            // checks are needed.
             const targetSplat = splat;
             const mode = lastGpuMode;
-            const myToken = ++selectToken;
             const minValue = histogram.histogram.minValue;
             const maxValue = histogram.histogram.maxValue;
             const numBins = histogram.histogram.bins.length;
+            const opts = buildGpuOpts();
 
-            // GPU computes the predicate. result is 1 byte per splat: 255 for
-            // splats that fall within the bucket range and pass all visibility
-            // / state checks, 0 otherwise.
-            const data = await targetSplat.scene.dataProcessor.selectByRange(targetSplat, mode, {
-                ...buildGpuOpts(),
-                min: minValue,
-                max: maxValue,
-                numBins,
-                rangeStart: start,
-                rangeEnd: end
+            targetSplat.scene.commandQueue.enqueue(async () => {
+                const data = await targetSplat.scene.dataProcessor.selectByRange(targetSplat, mode, {
+                    ...opts,
+                    min: minValue,
+                    max: maxValue,
+                    numBins,
+                    rangeStart: start,
+                    rangeEnd: end
+                });
+                // SelectOp (via 'select.mask') consumes the bytes synchronously
+                // in its constructor, so the buffer is safe to release once
+                // events.fire returns.
+                events.fire('select.mask', op, data);
+                targetSplat.scene.dataProcessor.releaseMask(data);
             });
-
-            // drop the result if the user started another drag (superseded) or
-            // switched away from this splat while we were waiting on the GPU.
-            // applying a stale mask would either be a no-op or, worse, mutate
-            // a different splat's selection state.
-            if (myToken !== selectToken || splat !== targetSplat) return;
-
-            events.fire('select.pred', op, (i: number) => data[i] === 255);
         });
     }
 }

@@ -14,6 +14,7 @@ import {
     Vec3
 } from 'playcanvas';
 
+import { BufferPool } from './buffer-pool';
 import { vertexShader, fragmentShader } from '../shaders/select-by-range-shader';
 import { Splat } from '../splat';
 
@@ -57,7 +58,6 @@ class SelectByRange {
     private shaders: Map<number, Shader> = new Map();
     private texture: Texture = null;
     private renderTarget: RenderTarget = null;
-    private data: Uint8Array = null;
 
     constructor(device: GraphicsDevice) {
         this.device = device;
@@ -107,18 +107,15 @@ class SelectByRange {
                 colorBuffer: this.texture,
                 depth: false
             });
-
-            this.data = new Uint8Array(resultWidth * resultHeight * 4);
         }
 
         return {
             texture: this.texture,
-            renderTarget: this.renderTarget,
-            data: this.data
+            renderTarget: this.renderTarget
         };
     }
 
-    async run(splat: Splat, mode: number, options: SelectByRangeOptions): Promise<Uint8Array> {
+    async run(splat: Splat, mode: number, options: SelectByRangeOptions, bufferPool: BufferPool): Promise<Uint8Array> {
         const { device } = this;
         const { scope } = device;
 
@@ -193,9 +190,12 @@ class SelectByRange {
         device.setBlendState(BlendState.NOBLEND);
         drawQuadWithShader(device, resources.renderTarget, shader);
 
+        const byteLen = resources.texture.width * resources.texture.height * 4;
+        const buffer = bufferPool.acquire(byteLen);
+
         const data = await resources.texture.read(0, 0, resources.texture.width, resources.texture.height, {
             renderTarget: resources.renderTarget,
-            data: resources.data,
+            data: buffer,
             immediate: false
         });
 

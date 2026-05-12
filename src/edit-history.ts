@@ -1,3 +1,4 @@
+import { CommandQueue } from './command-queue';
 import { EditOp, MultiOp } from './edit-ops';
 import { Events } from './events';
 import { Splat } from './splat';
@@ -17,29 +18,24 @@ class EditHistory {
     cursor = 0;
     events: Events;
 
-    // serialize all history-modifying operations so an in-flight op (including its async GPU
-    // readback in updatePositions) completes before the next add/undo/redo begins. without this,
-    // rapid Ctrl+Z / Ctrl+Shift+Z events race with pending updatePositions calls and corrupt the
-    // sorter's centers buffer in centers-overlay mode.
-    private chain: Promise<void> = Promise.resolve();
+    // shared queue for all async splat work. history mutations, transform handler
+    // readbacks, intersection picks, histogram bucket selects all enqueue here so
+    // the order they were initiated is the order they apply to state.
+    private commandQueue: CommandQueue;
 
-    constructor(events: Events) {
+    constructor(events: Events, commandQueue: CommandQueue) {
         this.events = events;
+        this.commandQueue = commandQueue;
 
         events.on('edit.undo', () => this.undo());
         events.on('edit.redo', () => this.redo());
         events.on('edit.add', (editOp: EditOp, suppressOp = false) => this.add(editOp, suppressOp));
     }
 
-    // enqueue arbitrary async work onto the serialized history chain. exposed so external
-    // callers (e.g. transform handlers) can serialize their own GPU readbacks alongside
-    // history mutations and avoid the same race conditions.
-    queue(fn: () => Promise<void>) {
-        const next = this.chain.then(fn);
-        this.chain = next.catch((err) => {
-            console.error('EditHistory queued operation failed', err);
-        });
-        return next;
+    // enqueue arbitrary async work onto the shared command queue. retained for callers
+    // that still go through edit-history; new callers should prefer the 'queue' event.
+    queue<T>(fn: () => T | Promise<T>): Promise<T> {
+        return this.commandQueue.enqueue(fn);
     }
 
     add(editOp: EditOp, suppressOp = false) {
@@ -115,13 +111,12 @@ class EditHistory {
             this.history = [];
             this.cursor = 0;
             this.fireEvents();
-            return Promise.resolve();
         });
     }
 
     // Remove all operations that reference a specific splat
     removeForSplat(splat: Splat) {
-        // serialize with the chain so we don't reshape history while a queued op is mid-flight
+        // serialize with the queue so we don't reshape history while a queued op is mid-flight
         // (which could leave queued undo/redo pointing at indices that no longer exist).
         return this.queue(() => {
             let newCursor = 0;
@@ -143,7 +138,6 @@ class EditHistory {
             this.history = newHistory;
             this.cursor = newCursor;
             this.fireEvents();
-            return Promise.resolve();
         });
     }
 }
