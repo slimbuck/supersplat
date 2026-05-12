@@ -68,6 +68,7 @@ class Histogram {
         let dragging = false;
         let dragStart = 0;
         let dragEnd = 0;
+        let activePointerId = -1;
 
         const offsetToBucket = (offset: number) => {
             const rect = this.canvas.getBoundingClientRect();
@@ -82,14 +83,60 @@ class Histogram {
 
         const updateHighlight = () => {
             const rect = this.canvas.getBoundingClientRect();
+            const h = this.histogram;
+            const bins = h.bins.length;
             const start = Math.min(dragStart, dragEnd);
             const end = Math.max(dragStart, dragEnd);
+            // anchorEdge / cursorEdge are bucket-boundary indices in [0, bins].
+            // they identify the OUTER edges of the highlight rect: anchorEdge
+            // is the side closest to the click, cursorEdge is the side closest
+            // to the live pointer. when dragging right (or zero-width), anchor
+            // is the left edge of dragStart and cursor is the right edge of
+            // dragEnd; reversed when dragging left.
+            const draggingRight = dragEnd >= dragStart;
+            const anchorEdge = draggingRight ? dragStart : dragStart + 1;
+            const cursorEdge = draggingRight ? dragEnd + 1 : dragEnd;
+            const edgeX = (i: number) => i / bins * rect.width;
+            const edgeValue = (i: number) => h.minValue + i * h.bucketSize;
             this.events.fire('highlight', {
                 x: bucketToOffset(start),
                 y: 0,
-                width: (end - start + 1) / this.histogram.bins.length * rect.width,
-                height: rect.height
+                width: (end - start + 1) / bins * rect.width,
+                height: rect.height,
+                startBucket: start,
+                endBucket: end,
+                anchorBucket: dragStart,
+                cursorBucket: dragEnd,
+                anchorX: edgeX(anchorEdge),
+                cursorX: edgeX(cursorEdge),
+                anchorValue: edgeValue(anchorEdge),
+                cursorValue: edgeValue(cursorEdge)
             });
+        };
+
+        // unify drag-end behavior so pointerup commits and pointercancel /
+        // lostpointercapture abort without leaving `dragging` stuck true. all
+        // three event paths funnel here, so the SVG highlight rect cannot be
+        // orphaned by a missed pointerup (e.g. release off-canvas, alt-tab,
+        // OS modal interrupt).
+        const endDrag = (commit: boolean, shiftKey = false, ctrlKey = false) => {
+            if (!dragging) return;
+            dragging = false;
+            if (activePointerId !== -1) {
+                try {
+                    this.canvas.releasePointerCapture(activePointerId);
+                } catch {
+                    // capture may already be lost (the very thing we're
+                    // recovering from); swallow.
+                }
+                activePointerId = -1;
+            }
+            if (commit) {
+                const op = shiftKey ? 'add' : (ctrlKey ? 'remove' : 'set');
+                this.events.fire('select', op, Math.min(dragStart, dragEnd), Math.max(dragStart, dragEnd));
+            } else {
+                this.events.fire('cancelHighlight');
+            }
         };
 
         this.canvas.addEventListener('pointerdown', (e: PointerEvent) => {
@@ -100,6 +147,7 @@ class Histogram {
 
             if (h.numValues) {
                 this.canvas.setPointerCapture(e.pointerId);
+                activePointerId = e.pointerId;
                 dragging = true;
                 dragStart = dragEnd = offsetToBucket(e.clientX);
                 updateHighlight();
@@ -109,15 +157,13 @@ class Histogram {
         this.canvas.addEventListener('pointerup', (e: PointerEvent) => {
             e.preventDefault();
             e.stopPropagation();
-
-            if (dragging) {
-                this.canvas.releasePointerCapture(e.pointerId);
-
-                const op = e.shiftKey ? 'add' : (e.ctrlKey ? 'remove' : 'set');
-                this.events.fire('select', op, Math.min(dragStart, dragEnd), Math.max(dragStart, dragEnd));
-                dragging = false;
-            }
+            endDrag(true, e.shiftKey, e.ctrlKey);
         });
+
+        // recover from interrupted gestures (pointer released off-canvas after
+        // capture loss, OS modal, browser-tab focus change, etc).
+        this.canvas.addEventListener('pointercancel', () => endDrag(false));
+        this.canvas.addEventListener('lostpointercapture', () => endDrag(false));
 
         this.canvas.addEventListener('pointermove', (e: PointerEvent) => {
             e.preventDefault();
@@ -137,11 +183,17 @@ class Histogram {
                 const binIndex = Math.min(h.bins.length - 1, Math.floor(x * h.bins.length));
                 const bin = h.bins[binIndex];
 
+                // continuous (non-bucketed) value at the cursor's pixel x.
+                // x is already clamped to [0, 1] above.
+                const cursorValue = h.minValue + x * (h.maxValue - h.minValue);
+
                 this.events.fire('updateOverlay', {
                     x: e.offsetX,
                     y: e.offsetY,
+                    bucketIndex: binIndex,
                     value: h.bucketValue(binIndex),
                     size: h.bucketSize,
+                    cursorValue,
                     selected: bin.selected,
                     unselected: bin.unselected,
                     total: h.numValues
@@ -149,11 +201,11 @@ class Histogram {
             }
         });
 
-        this.canvas.addEventListener('pointerenter', (e: PointerEvent) => {
+        this.canvas.addEventListener('pointerenter', () => {
             this.events.fire('showOverlay');
         });
 
-        this.canvas.addEventListener('pointerleave', (e: PointerEvent) => {
+        this.canvas.addEventListener('pointerleave', () => {
             this.events.fire('hideOverlay');
         });
     }

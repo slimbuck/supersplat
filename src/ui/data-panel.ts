@@ -321,7 +321,72 @@ class DataPanel extends Container {
             id: 'histogram-container'
         });
 
-        histogramContainer.dom.appendChild(histogram.canvas);
+        // wrap the canvas, SVG highlight overlay and stats overlay so the
+        // parent can be a flex column with a fixed info row underneath. without
+        // this wrapper, the canvas's inline width/height:100% consumes the
+        // whole container and pushes the info row out of view.
+        const histogramCanvasArea = document.createElement('div');
+        histogramCanvasArea.id = 'histogram-canvas-area';
+        histogramCanvasArea.appendChild(histogram.canvas);
+
+        // top-right stats overlay: shows the aggregate counts for the hovered
+        // bucket or the drag range. pointer-events: none so it never blocks
+        // the canvas pointer interactions.
+        const statsOverlay = document.createElement('div');
+        statsOverlay.id = 'histogram-stats-overlay';
+        statsOverlay.style.display = 'none';
+
+        const statsCountRow = document.createElement('div');
+        statsCountRow.className = 'histogram-stats-row';
+        const statsCountLabel = document.createElement('span');
+        statsCountLabel.className = 'histogram-stats-label';
+        statsCountLabel.textContent = `${localize('panel.splat-data.totals.splats')}:`;
+        const statsCountValue = document.createElement('span');
+        statsCountValue.className = 'histogram-stats-value';
+        statsCountRow.appendChild(statsCountLabel);
+        statsCountRow.appendChild(statsCountValue);
+
+        const statsSelectedRow = document.createElement('div');
+        statsSelectedRow.className = 'histogram-stats-row';
+        const statsSelectedLabel = document.createElement('span');
+        statsSelectedLabel.className = 'histogram-stats-label';
+        statsSelectedLabel.textContent = `${localize('panel.splat-data.totals.selected')}:`;
+        const statsSelectedValue = document.createElement('span');
+        statsSelectedValue.className = 'histogram-stats-value';
+        statsSelectedRow.appendChild(statsSelectedLabel);
+        statsSelectedRow.appendChild(statsSelectedValue);
+
+        statsOverlay.appendChild(statsCountRow);
+        statsOverlay.appendChild(statsSelectedRow);
+        histogramCanvasArea.appendChild(statsOverlay);
+
+        histogramContainer.dom.appendChild(histogramCanvasArea);
+
+        // info row pinned underneath the histogram canvas. min sits left, max
+        // sits right. while hovering, the cursor label slides along to show
+        // the bucket value under the pointer. while dragging, the anchor label
+        // sits at the click position (where the drag started) and the cursor
+        // label tracks the live pointer, so the user can read start -> end.
+        const histogramInfoRow = document.createElement('div');
+        histogramInfoRow.id = 'histogram-info-row';
+
+        const histogramInfoMin = document.createElement('div');
+        histogramInfoMin.className = 'histogram-info-min';
+
+        const histogramInfoAnchor = document.createElement('div');
+        histogramInfoAnchor.className = 'histogram-info-anchor';
+
+        const histogramInfoCursor = document.createElement('div');
+        histogramInfoCursor.className = 'histogram-info-cursor';
+
+        const histogramInfoMax = document.createElement('div');
+        histogramInfoMax.className = 'histogram-info-max';
+
+        histogramInfoRow.appendChild(histogramInfoMin);
+        histogramInfoRow.appendChild(histogramInfoAnchor);
+        histogramInfoRow.appendChild(histogramInfoCursor);
+        histogramInfoRow.appendChild(histogramInfoMax);
+        histogramContainer.dom.appendChild(histogramInfoRow);
 
         this.append(controlsContainer);
         this.append(histogramContainer);
@@ -388,8 +453,35 @@ class DataPanel extends Container {
                     numValues: result.numValues,
                     logScale: inputs.logScale
                 });
+
+                // eslint-disable-next-line no-use-before-define
+                refreshRange();
             });
         };
+
+        // format a numeric bucket value compactly for the overlay readout.
+        // mode-aware: index-only modes (like 'state') would round, but all
+        // current props are floats so a fixed-precision render is fine.
+        const formatValue = (v: number) => {
+            if (!Number.isFinite(v)) return '-';
+            const abs = Math.abs(v);
+            if (abs !== 0 && (abs < 0.01 || abs >= 10000)) {
+                return v.toExponential(2);
+            }
+            return v.toFixed(3);
+        };
+
+        const refreshRange = () => {
+            const h = histogram.histogram;
+            if (!h.numValues) {
+                histogramInfoMin.textContent = '';
+                histogramInfoMax.textContent = '';
+            } else {
+                histogramInfoMin.textContent = formatValue(h.minValue);
+                histogramInfoMax.textContent = formatValue(h.maxValue);
+            }
+        };
+        refreshRange();
 
         const tick = () => {
             if (!splat || this.hidden) return;
@@ -499,37 +591,73 @@ class DataPanel extends Container {
             }
         });
 
-        const popupContainer = new Container({
-            id: 'data-panel-popup-container',
-            hidden: true
-        });
+        // is the user mid-drag? while true, hover updates are suppressed and
+        // the anchor label remains pinned at the click position. cleared on
+        // pointerup / cancel.
+        let dragging = false;
 
-        const popupLabel = new Label({
-            id: 'data-panel-popup-label',
-            text: '',
-            unsafe: true
-        });
+        type Align = 'left' | 'center' | 'right';
 
-        popupContainer.append(popupLabel);
-        this.append(popupContainer);
+        const applyAlign = (el: HTMLElement, align: Align) => {
+            el.classList.toggle('align-left', align === 'left');
+            el.classList.toggle('align-right', align === 'right');
+        };
+
+        const setLabel = (el: HTMLElement, x: number, value: number, align: Align) => {
+            el.style.left = `${x}px`;
+            el.textContent = formatValue(value);
+            applyAlign(el, align);
+        };
+
+        const clearLabel = (el: HTMLElement) => {
+            el.textContent = '';
+            // reset alignment so the next hover starts from the centered default.
+            applyAlign(el, 'center');
+        };
+
+        const setCursorLabel = (x: number, value: number, align: Align) => {
+            setLabel(histogramInfoCursor, x, value, align);
+        };
+
+        const setAnchorLabel = (x: number, value: number, align: Align) => {
+            setLabel(histogramInfoAnchor, x, value, align);
+        };
+
+        const clearCursorLabel = () => clearLabel(histogramInfoCursor);
+        const clearAnchorLabel = () => clearLabel(histogramInfoAnchor);
+
+        const showStats = (count: number, selected: number, total: number) => {
+            const pct = total ? (count / total * 100).toFixed(1) : '0.0';
+            const fmt = (n: number) => n.toLocaleString();
+            statsCountValue.textContent = `${fmt(count)} (${pct}%)`;
+            statsSelectedValue.textContent = fmt(selected);
+            statsOverlay.style.display = '';
+        };
+
+        const hideStats = () => {
+            statsOverlay.style.display = 'none';
+        };
 
         histogram.events.on('showOverlay', () => {
-            popupContainer.hidden = false;
+            // pointermove will populate the readout; nothing else to do here.
         });
 
         histogram.events.on('hideOverlay', () => {
-            popupContainer.hidden = true;
+            // pointer left the canvas. only clear the hover UI; if a drag is
+            // in progress (capture is still active), the highlight handler
+            // keeps driving the labels.
+            if (!dragging) {
+                clearCursorLabel();
+                hideStats();
+            }
         });
 
         histogram.events.on('updateOverlay', (info: any) => {
-            popupContainer.style.left = `${info.x + 14}px`;
-            popupContainer.style.top = `${info.y}px`;
-
-            const binValue = info.value.toFixed(2);
-            const count = info.selected + info.unselected;
-            const percentage = (info.total ? count / info.total * 100 : 0).toFixed(2);
-
-            popupLabel.text = `value: ${binValue} cnt: ${count} (${percentage}%) sel: ${info.selected}`;
+            if (dragging) return; // drag handler owns the labels mid-gesture
+            if (!histogram.histogram.numValues) return;
+            // continuous (non-bucketed) value at the cursor pixel, centered.
+            setCursorLabel(info.x, info.cursorValue, 'center');
+            showStats(info.selected + info.unselected, info.selected, info.total);
         });
 
         // highlight
@@ -545,7 +673,7 @@ class DataPanel extends Container {
         rect.setAttribute('stroke-dasharray', '5, 5');
 
         svg.appendChild(rect);
-        histogramContainer.dom.appendChild(svg);
+        histogramCanvasArea.appendChild(svg);
 
         histogram.events.on('highlight', (info: any) => {
             rect.setAttribute('x', info.x.toString());
@@ -554,10 +682,51 @@ class DataPanel extends Container {
             rect.setAttribute('height', info.height.toString());
 
             svg.style.display = 'inline';
+            dragging = true;
+
+            // anchor and cursor sit at the outer edges of the highlight rect.
+            // align them so their text grows OUT of the rect: the left-most
+            // label is right-aligned (text grows left), the right-most label
+            // is left-aligned (text grows right). dragging-right is the
+            // default direction (also covers the zero-width click case).
+            const draggingRight = info.cursorBucket >= info.anchorBucket;
+            const anchorAlign: Align = draggingRight ? 'right' : 'left';
+            const cursorAlign: Align = draggingRight ? 'left' : 'right';
+            setAnchorLabel(info.anchorX, info.anchorValue, anchorAlign);
+            setCursorLabel(info.cursorX, info.cursorValue, cursorAlign);
+
+            // sum stats over the selected bucket range.
+            const h = histogram.histogram;
+            let count = 0;
+            let selected = 0;
+            for (let i = info.startBucket; i <= info.endBucket; ++i) {
+                const bin = h.bins[i];
+                count += bin.selected + bin.unselected;
+                selected += bin.selected;
+            }
+            showStats(count, selected, h.numValues);
+        });
+
+        // aborted drag (pointer released off-canvas / cancelled / capture lost).
+        // hide the highlight rect and clear the drag labels / stats so the
+        // readout doesn't stay stuck on a range the user never committed.
+        histogram.events.on('cancelHighlight', () => {
+            svg.style.display = 'none';
+            dragging = false;
+            clearAnchorLabel();
+            clearCursorLabel();
+            hideStats();
         });
 
         histogram.events.on('select', (op: string, start: number, end: number) => {
             svg.style.display = 'none';
+            dragging = false;
+            clearAnchorLabel();
+            // cursor label + stats will repopulate on the next pointermove if
+            // the pointer is still inside the canvas; clear them now for the
+            // case where the gesture ended off-canvas.
+            clearCursorLabel();
+            hideStats();
             if (!splat) return;
 
             // capture state synchronously at drag-end and enqueue the whole
