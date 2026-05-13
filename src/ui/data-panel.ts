@@ -6,6 +6,7 @@ import { Events } from '../events';
 import { Splat } from '../splat';
 import { Histogram } from './histogram';
 import { localize } from './localization';
+import { Tooltips } from './tooltips';
 
 // gpu propMode constants. these must match the propMode dispatch in
 // src/shaders/splat-value-shader.ts.
@@ -95,7 +96,7 @@ const hashInputs = (i: HistogramInputs): string => {
 };
 
 class DataPanel extends Container {
-    constructor(events: Events, args = { }) {
+    constructor(events: Events, tooltips: Tooltips, args = { }) {
         args = {
             ...args,
             id: 'data-panel',
@@ -307,10 +308,20 @@ class DataPanel extends Container {
             });
         };
 
+        // ordered: visible-only (histogram filter), log scale (histogram
+        // display), then all-properties (list filter, sitting right above the
+        // property list it affects).
+        controls.append(onScreenOnly);
         controls.append(logScale);
         controls.append(showAll);
-        controls.append(onScreenOnly);
         controls.append(dataListBox);
+
+        // tooltips explain what each toggle actually does. registered on the
+        // row containers so the entire row (label + toggle) shares one
+        // hover target.
+        tooltips.register(onScreenOnly, localize('tooltip.splat-data.on-screen-only'), 'right');
+        tooltips.register(logScale, localize('tooltip.splat-data.log-scale'), 'right');
+        tooltips.register(showAll, localize('tooltip.splat-data.show-all'), 'right');
 
         controlsContainer.append(controls);
 
