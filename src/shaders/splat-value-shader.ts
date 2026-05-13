@@ -362,7 +362,11 @@ bool computeSplatValue(int idx, out float value, out bool selected, out bool vis
         else                     value = q.w;     // Z
     }
     else if (propMode == 18 || propMode == 19 || propMode == 20) {
-        vec3 hsv = rgb2hsv(readFinalColor(s));
+        // rgb2hsv expects channels in [0, 1]; the renderer clamps the final
+        // pixel at output, so HSV is well-defined only on the clamped color.
+        // without this, unclamped HDR / SH-shifted channels yield nonsense
+        // S/V (e.g. (max - min)/max blowing up when max ≈ 0).
+        vec3 hsv = rgb2hsv(clamp(readFinalColor(s), 0.0, 1.0));
         if (propMode == 18)      value = hsv.x * 360.0;
         else if (propMode == 19) value = hsv.y;
         else                     value = hsv.z;
