@@ -533,10 +533,23 @@ class DataPanel extends Container {
         const CAMERA_SETTLE_MS = 150;
         let cameraTimer: number | null = null;
         const lastCameraMatrix = new Mat4();
+        const clearCameraTimer = () => {
+            if (cameraTimer !== null) {
+                clearTimeout(cameraTimer);
+                cameraTimer = null;
+            }
+        };
         events.on('prerender', (cameraMatrix: Mat4) => {
+            // skip when panel is hidden — no need to schedule a refresh that
+            // would short-circuit in tick(); also drop any in-flight timer so
+            // it doesn't fire against a hidden panel.
+            if (this.hidden) {
+                clearCameraTimer();
+                return;
+            }
             if (!cameraMatrix.equals(lastCameraMatrix)) {
                 lastCameraMatrix.copy(cameraMatrix);
-                if (cameraTimer !== null) clearTimeout(cameraTimer);
+                clearCameraTimer();
                 cameraTimer = window.setTimeout(() => {
                     cameraTimer = null;
                     inputs.cameraVersion++;

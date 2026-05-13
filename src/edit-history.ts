@@ -18,9 +18,9 @@ class EditHistory {
     cursor = 0;
     events: Events;
 
-    // shared queue for all async splat work. history mutations, transform handler
-    // readbacks, intersection picks, histogram bucket selects all enqueue here so
-    // the order they were initiated is the order they apply to state.
+    // shared queue used to serialize every history mutation. the same physical
+    // CommandQueue is shared with DataProcessor callers via scene.commandQueue
+    // and the 'queue' event, so all async splat work applies in initiation order.
     private commandQueue: CommandQueue;
 
     constructor(events: Events, commandQueue: CommandQueue) {
@@ -32,9 +32,7 @@ class EditHistory {
         events.on('edit.add', (editOp: EditOp, suppressOp = false) => this.add(editOp, suppressOp));
     }
 
-    // enqueue arbitrary async work onto the shared command queue. retained for callers
-    // that still go through edit-history; new callers should prefer the 'queue' event.
-    queue<T>(fn: () => T | Promise<T>): Promise<T> {
+    private queue<T>(fn: () => T | Promise<T>): Promise<T> {
         return this.commandQueue.enqueue(fn);
     }
 

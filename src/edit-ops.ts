@@ -105,6 +105,13 @@ class SelectOp extends StateOp {
     // (Uint8Array, 255 = hit) or a sorted Uint32Array of indices. taking a
     // committed mask rather than a closure removes the foot-gun where a
     // predicate captured `state[i]` at call time and was evaluated later.
+    // `op` semantics:
+    //   add    — select valid splats that are hit and currently unselected
+    //   remove — deselect valid splats that are hit and currently selected
+    //   set    — make selection match the hit mask (toggle valid splats whose
+    //            current selection state differs from the mask). NOT a replace —
+    //            the underlying BitOp is TOGGLE on the rows where selection and
+    //            hit disagree, which leaves locked/deleted bits untouched.
     constructor(splat: Splat, op: 'add' | 'remove' | 'set', sel: Uint8Array | Uint32Array) {
         const splatData = splat.splatData;
         const state = splatData.getProp('state') as Uint8Array;

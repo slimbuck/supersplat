@@ -15,6 +15,7 @@ import {
 } from 'playcanvas';
 
 import { BufferPool } from './buffer-pool';
+import { packedMaskHeight, packedMaskWidth } from './histogram-config';
 import { vertexShader, fragmentShader } from '../shaders/select-by-range-shader';
 import { Splat } from '../splat';
 
@@ -83,9 +84,9 @@ class SelectByRange {
     }
 
     private getResources(width: number, numSplats: number) {
-        // pack 4 splats per RGBA8 texel, matching Intersect's layout.
-        const resultWidth = Math.max(1, Math.floor(width / 2));
-        const resultHeight = Math.ceil(numSplats / (resultWidth * 4));
+        // pack 4 splats per RGBA8 texel; layout shared with Intersect via histogram-config.
+        const resultWidth = packedMaskWidth(width);
+        const resultHeight = packedMaskHeight(resultWidth, numSplats);
 
         if (!this.texture || this.texture.width !== resultWidth || this.texture.height !== resultHeight) {
             if (this.texture) {

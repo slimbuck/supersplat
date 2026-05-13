@@ -14,6 +14,7 @@ import {
 } from 'playcanvas';
 
 import { BufferPool } from './buffer-pool';
+import { packedMaskHeight, packedMaskWidth } from './histogram-config';
 import { vertexShader, fragmentShader } from '../shaders/intersection-shader';
 import { Splat } from '../splat';
 
@@ -72,8 +73,8 @@ class Intersect {
             });
         }
 
-        const resultWidth = Math.max(1, Math.floor(width / 2));
-        const resultHeight = Math.ceil(numSplats / (resultWidth * 4));
+        const resultWidth = packedMaskWidth(width);
+        const resultHeight = packedMaskHeight(resultWidth, numSplats);
 
         if (!this.texture || this.texture.width !== resultWidth || this.texture.height !== resultHeight) {
             if (this.texture) {

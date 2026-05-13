@@ -17,6 +17,7 @@ import {
 } from 'playcanvas';
 
 import { drawPointsWithShader } from './draw-points';
+import { GRID_DIM, NUM_BINS } from './histogram-config';
 import {
     fullscreenVS,
     tileMinMaxFS,
@@ -25,9 +26,6 @@ import {
     binFS
 } from '../shaders/histogram-shaders';
 import { Splat } from '../splat';
-
-const GRID_DIM = 64;
-const NUM_BINS = 256;
 
 const identity = new Mat4();
 const zeroVec3 = new Vec3();
@@ -256,6 +254,28 @@ class CalcHistogram {
         d.setRenderTarget(oldRt);
         d.setViewport(oldVx, oldVy, oldVw, oldVh);
         d.setScissor(oldSx, oldSy, oldSw, oldSh);
+    }
+
+    // release all GPU resources owned by this instance. peer data-processor
+    // classes (Intersect, SelectByRange, CalcBound) destroy resources only on
+    // size change; CalcHistogram resources are fixed-size, so this exists for
+    // explicit teardown (context loss, scene reload) rather than per-run reuse.
+    destroy() {
+        this.tileRT?.destroy();
+        this.tileTex?.destroy();
+        this.minMaxRT?.destroy();
+        this.minMaxTex?.destroy();
+        this.binRT?.destroy();
+        this.binTex?.destroy();
+        this.tileRT = null;
+        this.tileTex = null;
+        this.minMaxRT = null;
+        this.minMaxTex = null;
+        this.binRT = null;
+        this.binTex = null;
+        this.tileShaders.clear();
+        this.binShaders.clear();
+        this.reduceShader = null;
     }
 
     async run(splat: Splat, mode: number, options?: CalcHistogramOptions): Promise<CalcHistogramResult> {
