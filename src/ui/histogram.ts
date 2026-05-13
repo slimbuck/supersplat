@@ -160,10 +160,21 @@ class Histogram {
             endDrag(true, e.shiftKey, e.ctrlKey);
         });
 
-        // recover from interrupted gestures (pointer released off-canvas after
-        // capture loss, OS modal, browser-tab focus change, etc).
+        // pointercancel signals user intent to abort (OS modal, alt-tab,
+        // multi-touch, etc.). pointer is gone, nothing to commit.
         this.canvas.addEventListener('pointercancel', () => endDrag(false));
-        this.canvas.addEventListener('lostpointercapture', () => endDrag(false));
+
+        // lostpointercapture is informational, not a user-intent signal. in the
+        // normal pointerup flow it fires AFTER our pointerup handler has run, by
+        // which time `dragging` is false and endDrag short-circuits. when it
+        // fires mid-drag without a prior pointerup (Chrome occasionally reorders
+        // these around DOM mutation / extension-injected events), the prior
+        // behaviour was to silently abort — which produces the "click sometimes
+        // doesn't register" symptom. commit instead, using the modifier state
+        // on the event so add/remove/set are preserved.
+        this.canvas.addEventListener('lostpointercapture', (e: PointerEvent) => {
+            endDrag(true, e.shiftKey, e.ctrlKey);
+        });
 
         this.canvas.addEventListener('pointermove', (e: PointerEvent) => {
             e.preventDefault();
