@@ -151,7 +151,11 @@ class SplatsTransformHandler implements TransformHandler {
             transformPalette.setTransform(newIdx, mat2);
         });
 
-        this.splat.updateLocalBounds();
+        // route through the shared queue so overlapping drag ticks don't race
+        // on CalcBound's shared render targets / readback buffers. fire-and-
+        // forget is fine: the final bound is recomputed when end() awaits
+        // updatePositions -> updateSorting -> updateLocalBounds.
+        this.events.invoke('queue', () => this.splat.updateLocalBounds());
     }
 
     async end() {

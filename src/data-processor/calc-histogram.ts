@@ -39,7 +39,6 @@ type CalcHistogramOptions = {
     viewProjection?: Mat4;
     cameraPos?: Vec3;
     onScreenOnly?: boolean;
-    numBins?: number;
 };
 
 type CalcHistogramResult = {
@@ -288,7 +287,6 @@ class CalcHistogram {
         const binShader = this.getBinShader(shBands);
 
         const numSplats = this.setSplatUniforms(splat, mode, options);
-        const numBins = options?.numBins ?? NUM_BINS;
 
         const tileSize = Math.ceil(numSplats / (GRID_DIM * GRID_DIM));
         scope.resolve('tileSize').setValue(tileSize);
@@ -310,7 +308,7 @@ class CalcHistogram {
         // bin shader needs same splat uniforms + minMax + numBins
         this.setSplatUniforms(splat, mode, options);
         scope.resolve('minMax').setValue(this.minMaxTex);
-        scope.resolve('numBins').setValue(numBins);
+        scope.resolve('numBins').setValue(NUM_BINS);
 
         drawPointsWithShader(device, this.binRT, binShader, numSplats, this.additiveBlend);
 
@@ -336,10 +334,10 @@ class CalcHistogram {
             max = 0;
         }
 
-        const selected = new Float32Array(numBins);
-        const unselected = new Float32Array(numBins);
+        const selected = new Float32Array(NUM_BINS);
+        const unselected = new Float32Array(NUM_BINS);
         let numValues = 0;
-        for (let i = 0; i < numBins; i++) {
+        for (let i = 0; i < NUM_BINS; i++) {
             const s = this.binData[i * 4];
             const u = this.binData[i * 4 + 1];
             selected[i] = s;

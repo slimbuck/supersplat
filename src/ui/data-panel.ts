@@ -452,22 +452,29 @@ class DataPanel extends Container {
             const myToken = ++pendingToken;
             splat.scene.commandQueue.enqueue(async () => {
                 if (myToken !== pendingToken) return;
-                const result = await splat.scene.dataProcessor.calcHistogram(splat, mode, opts);
-                if (myToken !== pendingToken) return;
+                try {
+                    const result = await splat.scene.dataProcessor.calcHistogram(splat, mode, opts);
+                    if (myToken !== pendingToken) return;
 
-                lastGpuMode = mode;
+                    lastGpuMode = mode;
 
-                histogram.setData({
-                    selected: result.selected,
-                    unselected: result.unselected,
-                    min: result.min,
-                    max: result.max,
-                    numValues: result.numValues,
-                    logScale: inputs.logScale
-                });
+                    histogram.setData({
+                        selected: result.selected,
+                        unselected: result.unselected,
+                        min: result.min,
+                        max: result.max,
+                        numValues: result.numValues,
+                        logScale: inputs.logScale
+                    });
 
-                // eslint-disable-next-line no-use-before-define
-                refreshRange();
+                    // eslint-disable-next-line no-use-before-define
+                    refreshRange();
+                } catch (err) {
+                    // clear lastHash so the next tick with the same inputs retries
+                    // instead of being deduped against the failed pass.
+                    lastHash = '';
+                    throw err;
+                }
             });
         };
 
