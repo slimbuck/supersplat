@@ -282,6 +282,17 @@ class DataPanel extends Container {
 
             const allProps = [...defaultProps, ...extraProps];
 
+            // if the current selection is no longer in the list (e.g. "All
+            // Properties" turned off after picking f_rest_5, or selection moved
+            // to a splat with fewer SH bands), fall back to the first available
+            // prop so inputs.mode doesn't stay pinned to an unsupported propMode
+            // with no active row to indicate it.
+            if (allProps.length > 0 && !allProps.includes(selectedDataProp)) {
+                selectedDataProp = allProps[0];
+                // eslint-disable-next-line no-use-before-define
+                inputs.mode = propModeFor(selectedDataProp) ?? 0;
+            }
+
             // clear existing items
             dataListBox.dom.innerHTML = '';
 
@@ -620,6 +631,10 @@ class DataPanel extends Container {
         showAllValue.on('change', () => {
             if (splat) {
                 populateDataSelector(splat);
+                // populateDataSelector may have remapped selectedDataProp when
+                // the previous one was hidden by toggling extras off; refresh
+                // the histogram in case inputs.mode changed.
+                tick();
             }
         });
 
