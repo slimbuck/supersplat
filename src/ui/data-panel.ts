@@ -395,8 +395,9 @@ class DataPanel extends Container {
 
         histogramInfoRow.appendChild(histogramInfoMin);
         histogramInfoRow.appendChild(histogramInfoAnchor);
-        histogramInfoRow.appendChild(histogramInfoCursor);
         histogramInfoRow.appendChild(histogramInfoMax);
+        // cursor last so it stacks above min/max (same row, absolute positioning).
+        histogramInfoRow.appendChild(histogramInfoCursor);
         histogramContainer.dom.appendChild(histogramInfoRow);
 
         this.append(controlsContainer);
@@ -620,18 +621,43 @@ class DataPanel extends Container {
             applyAlign(el, align);
         };
 
-        const clearLabel = (el: HTMLElement) => {
-            el.textContent = '';
-            // reset alignment so the next hover starts from the centered default.
-            applyAlign(el, 'center');
+        /** Keep cursor readout inside #histogram-info-row horizontal padding. */
+        const clampCursorX = (align: Align) => {
+            const el = histogramInfoCursor;
+            if (!el.textContent) return;
+            const w = el.offsetWidth;
+            const R = histogramInfoRow.clientWidth;
+            if (w <= 0 || R <= 0) return;
+            const lo = 4;
+            const hi = R - 4;
+            const x = parseFloat(el.style.left);
+            if (!Number.isFinite(x)) return;
+            let nx = x;
+            if (align === 'center') {
+                const hw = w * 0.5;
+                nx = hi - lo < w ? (lo + hi) * 0.5 : Math.min(hi - hw, Math.max(lo + hw, x));
+            } else if (align === 'left') {
+                nx = hi - lo < w ? lo : Math.min(hi - w, Math.max(lo, x));
+            } else {
+                // `left` style is the chip's right edge
+                nx = hi - lo < w ? hi : Math.min(hi, Math.max(lo + w, x));
+            }
+            if (nx !== x) el.style.left = `${nx}px`;
         };
 
         const setCursorLabel = (x: number, value: number, align: Align) => {
             setLabel(histogramInfoCursor, x, value, align);
+            requestAnimationFrame(() => clampCursorX(align));
         };
 
         const setAnchorLabel = (x: number, value: number, align: Align) => {
             setLabel(histogramInfoAnchor, x, value, align);
+        };
+
+        const clearLabel = (el: HTMLElement) => {
+            el.textContent = '';
+            // reset alignment so the next hover starts from the centered default.
+            applyAlign(el, 'center');
         };
 
         const clearCursorLabel = () => clearLabel(histogramInfoCursor);
